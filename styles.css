@@ -634,3 +634,67 @@ body {
     text-align: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+
+/* New styles for nearest routes and walking routes */
+.nearest-routes-list {
+    margin-top: 10px;
+}
+
+.nearest-route-item {
+    padding: 15px;
+    margin: 10px 0;
+    border: 2px solid #e3f2fd;
+    border-radius: 8px;
+    background: #f8fdff;
+}
+
+.route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.distance-badge {
+    background: #2196f3;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.recommendation {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.walking-route-info {
+    background: #e8f5e8;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #4caf50;
+}
+
+.walking-marker {
+    font-size: 20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+}
+
+.jeepney-marker {
+    font-size: 20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+}
+
+/* Search radius circle animation */
+@keyframes pulse {
+    0% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 0.1; }
+}
+
+.search-radius-circle {
+    animation: pulse 2s infinite;
+}

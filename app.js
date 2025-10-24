@@ -9,6 +9,8 @@ class BatangasJeepneySystem {
         this.currentRoutingService = 'https://router.project-osrm.org/route/v1/driving/';
         this.userLocation = null;
         this.accuracyCircle = null;
+        this.searchRadiusCircle = null;
+        this.nearestRoutes = [];
         
         this.init();
     }
@@ -230,7 +232,7 @@ class BatangasJeepneySystem {
         document.getElementById('feeder-routes').textContent = feederRoutes;
     }
 
-    // SIMPLIFIED: Use My Location function with better accuracy
+    // IMPROVED: Use My Location with dynamic radius and route finding
     async useMyLocation(field, event) {
         console.log('useMyLocation called with field:', field);
         
@@ -269,6 +271,9 @@ class BatangasJeepneySystem {
             }
             if (this.accuracyCircle) {
                 this.map.removeLayer(this.accuracyCircle);
+            }
+            if (this.searchRadiusCircle) {
+                this.map.removeLayer(this.searchRadiusCircle);
             }
             
             // Add accuracy circle (limited to 500m max for better UX)
@@ -310,6 +315,9 @@ class BatangasJeepneySystem {
                 alert('📍 Location found (Low accuracy). For better results, enable GPS and go outside.');
             }
             
+            // NEW: Find nearest jeepney routes with dynamic radius
+            await this.findNearestJeepneyRoutes([lat, lng]);
+            
         } catch (error) {
             console.error('Location error:', error);
             alert('❌ Could not get your location. Please ensure location services are enabled.');
@@ -319,6 +327,256 @@ class BatangasJeepneySystem {
                 button.disabled = false;
             }
         }
+    }
+
+    // NEW: Find nearest jeepney routes with dynamic radius expansion
+    async findNearestJeepneyRoutes(userLocation) {
+        console.log('Finding nearest jeepney routes...');
+        
+        const maxRadius = 2000; // Maximum search radius in meters (2km)
+        const radiusStep = 200; // Expand by 200m each step
+        
+        // Show loading for route search
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            // Remove previous search radius circle
+            if (this.searchRadiusCircle) {
+                this.map.removeLayer(this.searchRadiusCircle);
+            }
+            
+            // Create expanding radius animation
+            const expandRadius = async () => {
+                for (let radius = 100; radius <= maxRadius; radius += radiusStep) {
+                    // Update search radius circle
+                    if (this.searchRadiusCircle) {
+                        this.map.removeLayer(this.searchRadiusCircle);
+                    }
+                    
+                    this.searchRadiusCircle = L.circle(userLocation, {
+                        radius: radius,
+                        color: '#2196f3',
+                        fillColor: '#2196f3',
+                        fillOpacity: 0.1,
+                        weight: 2,
+                        dashArray: '5, 5'
+                    }).addTo(this.map);
+                    
+                    // Find routes within current radius
+                    const routesInRadius = this.findRoutesWithinRadius(userLocation, radius);
+                    
+                    if (routesInRadius.length > 0) {
+                        // Found routes! Stop expanding and display results
+                        this.displayNearestRoutes(routesInRadius, userLocation, radius);
+                        break;
+                    }
+                    
+                    // Wait a bit before expanding further (creates animation effect)
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                
+                // If no routes found even at max radius
+                if (this.nearestRoutes.length === 0) {
+                    this.showNotification('❌ No jeepney routes found within 2km. Try a different location.', 'error');
+                }
+            };
+            
+            await expandRadius();
+            
+        } catch (error) {
+            console.error('Error finding nearest routes:', error);
+            this.showNotification('❌ Error searching for nearby routes', 'error');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // NEW: Find routes within a specific radius
+    findRoutesWithinRadius(userLocation, radius) {
+        const nearbyRoutes = [];
+        
+        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+            const allRoutePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+            
+            // Find the closest point on this route to user location
+            let minDistance = Infinity;
+            let closestPoint = null;
+            
+            allRoutePoints.forEach(point => {
+                const distance = this.calculateDistance(userLocation, point);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPoint = point;
+                }
+            });
+            
+            // If route is within search radius, add it to results
+            if (minDistance <= radius) {
+                nearbyRoutes.push({
+                    routeName: routeName,
+                    routeData: routeData,
+                    distance: minDistance,
+                    closestPoint: closestPoint,
+                    recommendation: this.getTransportRecommendation(minDistance)
+                });
+            }
+        });
+        
+        // Sort by distance (closest first)
+        return nearbyRoutes.sort((a, b) => a.distance - b.distance).slice(0, 5); // Top 5 closest
+    }
+
+    // NEW: Get transportation recommendation based on distance
+    getTransportRecommendation(distance) {
+        if (distance <= 300) { // Within 300m
+            return {
+                type: 'walk',
+                message: `🚶‍♂️ Walk ${Math.round(distance)}m to jeepney route`,
+                time: Math.round(distance / 80), // 80m per minute walking
+                color: '#4caf50'
+            };
+        } else if (distance <= 1000) { // 300m - 1km
+            return {
+                type: 'walk_or_tricycle',
+                message: `🚶‍♂️ Walk ${Math.round(distance)}m or 🛺 Take tricycle`,
+                time: Math.round(distance / 80), // Walking time
+                tricycleTime: Math.round(distance / 200), // 200m per minute for tricycle
+                tricycleFare: distance <= 500 ? '₱10-15' : '₱15-25',
+                color: '#ff9800'
+            };
+        } else { // Over 1km
+            return {
+                type: 'tricycle',
+                message: `🛺 Take tricycle (${Math.round(distance)}m away)`,
+                time: Math.round(distance / 200), // 200m per minute for tricycle
+                fare: '₱25-40',
+                color: '#f44336'
+            };
+        }
+    }
+
+    // NEW: Display nearest routes with recommendations
+    displayNearestRoutes(routes, userLocation, searchRadius) {
+        this.nearestRoutes = routes;
+        
+        let html = `
+            <h5>📍 Nearest Jeepney Routes (${routes.length} found within ${searchRadius}m)</h5>
+            <div class="nearest-routes-list">
+        `;
+        
+        routes.forEach((route, index) => {
+            const rec = route.recommendation;
+            
+            html += `
+                <div class="nearest-route-item">
+                    <div class="route-header">
+                        <strong>${index + 1}. ${route.routeName}</strong>
+                        <span class="distance-badge">${Math.round(route.distance)}m away</span>
+                    </div>
+                    <div class="recommendation" style="background: ${rec.color}20; border-left: 4px solid ${rec.color}; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                        <strong>${rec.message}</strong>
+                        ${rec.type === 'walk' ? `<br>🕐 ${rec.time} min walking` : ''}
+                        ${rec.type === 'walk_or_tricycle' ? `<br>🕐 ${rec.time} min walking or ${rec.tricycleTime} min by tricycle (${rec.tricycleFare})` : ''}
+                        ${rec.type === 'tricycle' ? `<br>🕐 ${rec.time} min • 💰 ${rec.fare}` : ''}
+                    </div>
+                    <div class="route-info">
+                        ${route.routeData.description}<br>
+                        Frequency: ${route.routeData.frequency} • Fare: ${route.routeData.fare}
+                    </div>
+                    <button class="control-btn success" onclick="routeManager.createSnappedRoute('${route.routeName}', jeepneyRoutes['${route.routeName}'])">
+                        Show This Route
+                    </button>
+                    <button class="control-btn secondary" onclick="app.showWalkingRoute([${userLocation}], [${route.closestPoint}], ${route.distance})">
+                        🚶 Show Walking Route
+                    </button>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        
+        document.getElementById('route-options').innerHTML = html;
+        document.getElementById('route-options').style.display = 'block';
+        
+        this.showNotification(`✅ Found ${routes.length} jeepney routes nearby!`, 'success');
+    }
+
+    // NEW: Show walking route to jeepney stop
+    showWalkingRoute(startCoords, endCoords, distance) {
+        // Clear existing routes first
+        routeManager.clearAllRoutesSilently();
+        
+        // Create walking route line (simplified - straight line for demo)
+        const walkingRoute = L.polyline([startCoords, endCoords], {
+            color: '#4caf50',
+            weight: 4,
+            opacity: 0.8,
+            dashArray: '5, 5',
+            lineCap: 'round'
+        }).addTo(this.map);
+        
+        // Add markers for start and end points
+        L.marker(startCoords, {
+            icon: L.divIcon({
+                className: 'walking-marker',
+                html: '🚶',
+                iconSize: [25, 25],
+                iconAnchor: [12, 25]
+            })
+        })
+        .addTo(this.map)
+        .bindPopup('<b>Your Location</b><br>Start walking from here')
+        .openPopup();
+        
+        L.marker(endCoords, {
+            icon: L.divIcon({
+                className: 'jeepney-marker',
+                html: '🚍',
+                iconSize: [25, 25],
+                iconAnchor: [12, 25]
+            })
+        })
+        .addTo(this.map)
+        .bindPopup('<b>Jeepney Stop</b><br>Nearest pickup point')
+        .openPopup();
+        
+        // Fit map to show the walking route
+        this.map.fitBounds(walkingRoute.getBounds());
+        
+        // Show walking route details
+        const walkingTime = Math.round(distance / 80); // 80m per minute walking
+        const detailsDiv = document.getElementById('route-details');
+        detailsDiv.innerHTML = `
+            <h4>🚶 Walking Route to Jeepney</h4>
+            <div class="walking-route-info">
+                <p><strong>Distance:</strong> ${Math.round(distance)} meters</p>
+                <p><strong>Walking Time:</strong> ${walkingTime} minutes</p>
+                <p><strong>Pace:</strong> Normal walking speed (5km/h)</p>
+                <p><strong>Tip:</strong> Look for the nearest tricycle if you have luggage or it's raining</p>
+            </div>
+            <div style="margin-top: 15px;">
+                <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
+                    🗑️ Clear Route
+                </button>
+            </div>
+        `;
+        detailsDiv.style.display = 'block';
+    }
+
+    // Calculate distance between two coordinates (in meters)
+    calculateDistance(coord1, coord2) {
+        const R = 6371000; // Earth radius in meters
+        const lat1 = coord1[0] * Math.PI / 180;
+        const lat2 = coord2[0] * Math.PI / 180;
+        const deltaLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+        const deltaLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+
+        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                  Math.cos(lat1) * Math.cos(lat2) *
+                  Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
     }
 
     // NEW: Clear current location and destination
@@ -331,6 +589,7 @@ class BatangasJeepneySystem {
         
         // Clear user location data
         this.userLocation = null;
+        this.nearestRoutes = [];
         
         // Remove location marker and accuracy circle from map
         if (this.currentLocationMarker) {
@@ -340,6 +599,10 @@ class BatangasJeepneySystem {
         if (this.accuracyCircle) {
             this.map.removeLayer(this.accuracyCircle);
             this.accuracyCircle = null;
+        }
+        if (this.searchRadiusCircle) {
+            this.map.removeLayer(this.searchRadiusCircle);
+            this.searchRadiusCircle = null;
         }
         
         // Clear route options display
@@ -353,6 +616,37 @@ class BatangasJeepneySystem {
         this.showNotification('🗑️ Location inputs and routes cleared!', 'info');
         
         console.log('Location inputs and routes cleared successfully');
+    }
+
+    // Helper method for notifications
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'info' ? '#17a2b8' : '#6c757d'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            font-weight: bold;
+            text-align: center;
+            max-width: 300px;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 
     // NEW: IP-based location fallback
@@ -397,37 +691,6 @@ class BatangasJeepneySystem {
             console.error('Reverse geocoding error:', error);
         }
         return null;
-    }
-
-    // Helper method for notifications
-    showNotification(message, type = 'info') {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'info' ? '#17a2b8' : '#6c757d'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 10000;
-            font-weight: bold;
-            text-align: center;
-            max-width: 300px;
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 3000);
     }
 }
 
