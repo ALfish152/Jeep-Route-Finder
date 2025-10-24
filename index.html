@@ -6,219 +6,117 @@
     <title>Batangas City Jeepney Routes with ETA</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
-        
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
-        
-        .sidebar {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 380px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .route-item {
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #f9f9f9;
-        }
-        
-        .route-item:hover {
-            background-color: #e3f2fd;
-            transform: translateY(-2px);
-        }
-        
-        .route-item.active {
-            background-color: #e3f2fd;
-            border-color: #2196f3;
-            box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
-        }
-        
-        .route-info {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .search-box {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .legend {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin: 8px 0;
-        }
-        
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            border: 2px solid;
-            border-radius: 4px;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 10px;
-            color: #2196f3;
-            background: #e3f2fd;
-            border-radius: 6px;
-            margin: 10px 0;
-        }
-        
-        .route-controls {
-            margin: 15px 0;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 6px;
-        }
-        
-        .control-btn {
-            padding: 8px 15px;
-            margin: 5px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background: #2196f3;
-            color: white;
-            font-size: 14px;
-        }
-        
-        .control-btn:hover {
-            background: #1976d2;
-        }
-        
-        .control-btn.secondary {
-            background: #666;
-        }
-        
-        .control-btn.secondary:hover {
-            background: #555;
-        }
-        
-        .route-details {
-            margin-top: 10px;
-            padding: 15px;
-            background: #e8f5e8;
-            border-radius: 6px;
-            font-size: 0.9em;
-        }
-        
-        .eta-info {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        
-        .traffic-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .traffic-low { background-color: #28a745; }
-        .traffic-medium { background-color: #ffc107; }
-        .traffic-high { background-color: #dc3545; }
-        
-        .time-slider {
-            width: 100%;
-            margin: 10px 0;
-        }
-        
-        .time-display {
-            text-align: center;
-            font-weight: bold;
-            color: #2196f3;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="map"></div>
     
-    <div class="sidebar">
-        <h3>🚙 Batangas City Jeepney Routes</h3>
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        
+        <h3 style="margin-top: 0; color: #2c3e50;">🚙 Batangas City Jeepney Routes</h3>
         <input type="text" class="search-box" placeholder="🔍 Search routes..." id="searchBox">
         
+        <div class="route-planner">
+            <h4 class="section-title">📍 Route Planner</h4>
+            
+            <div class="location-buttons">
+                <button class="location-btn" onclick="app.useMyLocation('start', event)">📍 Use My Location (Start)</button>
+                <button class="location-btn" onclick="app.useMyLocation('end', event)">📍 Use My Location (End)</button>
+            </div>
+            
+            <div class="input-with-suggestions">
+                <input type="text" id="startLocation" placeholder="Start location" class="search-box" style="margin-bottom: 5px;">
+                <div class="suggestions-list" id="startSuggestions"></div>
+            </div>
+            
+            <div class="input-with-suggestions">
+                <input type="text" id="endLocation" placeholder="Destination" class="search-box" style="margin-bottom: 10px;">
+                <div class="suggestions-list" id="endSuggestions"></div>
+            </div>
+            
+            <button class="control-btn success" onclick="routePlanner.planRoute()">Find Best Route</button>
+            <div id="route-options" class="route-options"></div>
+        </div>
+        
         <div class="route-controls">
-            <button class="control-btn" onclick="showAllRoutes()">Show All Routes</button>
-            <button class="control-btn secondary" onclick="clearRoutes()">Clear Routes</button>
-            <button class="control-btn" onclick="toggleTrafficLayer()" id="trafficToggle">Show Traffic</button>
+            <button class="control-btn" onclick="routeManager.showAllRoutes()">Show All Routes</button>
+            <button class="control-btn secondary" onclick="routeManager.clearAllRoutes()">Clear All Routes</button>
+            <button class="control-btn" onclick="trafficLayer.toggleTraffic()" id="trafficToggle">Show Traffic</button>
         </div>
         
         <div class="time-controls">
-            <label>Simulate Departure Time:</label>
+            <h4 class="section-title">🕐 Simulate Departure Time</h4>
             <input type="range" min="0" max="23" value="12" class="time-slider" id="timeSlider">
             <div class="time-display" id="timeDisplay">12:00 PM</div>
         </div>
         
         <div class="loading" id="loading">Calculating route and ETA... 🗺️</div>
+        
+        <h4 class="section-title">🚍 Available Routes</h4>
         <div id="routes-list"></div>
+        
         <div id="route-details" class="route-details" style="display: none;"></div>
+        
+        <div class="favorites">
+            <h4 class="section-title">⭐ Favorite Routes</h4>
+            <div id="favorites-list"></div>
+        </div>
+        
+        <div class="statistics">
+            <h4 class="section-title">📊 Route Statistics</h4>
+            <div id="route-stats">
+                <div class="stat-item">
+                    <span>Total Routes:</span>
+                    <span id="total-routes">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Active Today:</span>
+                    <span id="active-routes">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Main Routes:</span>
+                    <span id="main-routes">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Feeder Routes:</span>
+                    <span id="feeder-routes">0</span>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="legend">
-        <h4>Route Types</h4>
+        <h4 style="margin-top: 0;">Jeep Route Colors</h4>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #ff4444; border-color: #cc0000;"></div>
-            <span>Main Routes</span>
+            <div class="legend-color" style="background-color: #ffeb3b; border-color: #fbc02d;"></div>
+            <span>Yellow Routes</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #44ff44; border-color: #00cc00;"></div>
-            <span>Secondary Routes</span>
+            <div class="legend-color" style="background-color: #f44336; border-color: #d32f2f;"></div>
+            <span>Red Routes</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #4444ff; border-color: #0000cc;"></div>
-            <span>Feeder Routes</span>
+            <div class="legend-color" style="background-color: #ffffff; border-color: #bdbdbd;"></div>
+            <span>White Routes</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #ff44ff; border-color: #cc00cc;"></div>
-            <span>Special Routes</span>
+            <div class="legend-color" style="background-color: #ff9800; border-color: #f57c00;"></div>
+            <span>Orange Routes</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4caf50; border-color: #388e3c;"></div>
+            <span>Green Routes</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #2196f3; border-color: #1976d2;"></div>
+            <span>Blue Routes</span>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="script.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
