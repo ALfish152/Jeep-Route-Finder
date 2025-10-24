@@ -483,6 +483,23 @@ body {
     font-size: 24px;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+    z-index: 1000;
+}
+
+/* Accuracy circle colors */
+.high-accuracy-circle {
+    stroke: #00C851;
+    fill: #00C851;
+}
+
+.medium-accuracy-circle {
+    stroke: #ffbb33;
+    fill: #ffbb33;
+}
+
+.low-accuracy-circle {
+    stroke: #ff4444;
+    fill: #ff4444;
 }
 
 .multi-route-indicator {
@@ -588,4 +605,32 @@ body {
     border-radius: 4px;
     border-left: 3px solid #2196f3;
     font-weight: bold;
+}
+
+.transfer-route {
+    background: #fff3e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    border: 2px dashed #ffb74d;
+}
+
+.route-leg {
+    padding: 12px;
+    margin: 8px 0;
+    background: white;
+    border-radius: 6px;
+    border-left: 4px solid #4caf50;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.transfer-point {
+    padding: 10px;
+    margin: 8px 0;
+    background: #e3f2fd;
+    border-radius: 6px;
+    border-left: 4px solid #2196f3;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }

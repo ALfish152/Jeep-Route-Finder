@@ -8,6 +8,7 @@ class BatangasJeepneySystem {
         this.trafficLayer = null;
         this.currentRoutingService = 'https://router.project-osrm.org/route/v1/driving/';
         this.userLocation = null;
+        this.accuracyCircle = null;
         
         this.init();
     }
@@ -229,7 +230,7 @@ class BatangasJeepneySystem {
         document.getElementById('feeder-routes').textContent = feederRoutes;
     }
 
-    // FIXED: Use My Location function
+    // SIMPLIFIED: Use My Location function with better accuracy
     async useMyLocation(field, event) {
         console.log('useMyLocation called with field:', field);
         
@@ -238,48 +239,49 @@ class BatangasJeepneySystem {
             return;
         }
 
-        // Get the button that was clicked
         const button = event?.target;
         if (button) {
-            const originalText = button.textContent;
             button.textContent = '📍 Getting location...';
             button.disabled = true;
         }
 
         try {
-            console.log('Requesting geolocation...');
-            
             const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        console.log('Geolocation success:', pos.coords);
-                        resolve(pos);
-                    },
-                    (err) => {
-                        console.error('Geolocation error:', err);
-                        reject(err);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 15000,
-                        maximumAge: 60000
-                    }
-                );
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                });
             });
 
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
             
-            console.log('Location obtained:', lat, lng);
+            console.log('Location obtained:', { lat, lng, accuracy: accuracy + 'm' });
             
             // Store user location
             this.userLocation = [lat, lng];
             
-            // Add marker to map
+            // Clear existing markers
             if (this.currentLocationMarker) {
                 this.map.removeLayer(this.currentLocationMarker);
             }
+            if (this.accuracyCircle) {
+                this.map.removeLayer(this.accuracyCircle);
+            }
             
+            // Add accuracy circle (limited to 500m max for better UX)
+            const displayAccuracy = Math.min(accuracy, 500);
+            this.accuracyCircle = L.circle([lat, lng], {
+                radius: displayAccuracy,
+                color: accuracy <= 50 ? '#00C851' : accuracy <= 100 ? '#ffbb33' : '#ff4444',
+                fillColor: accuracy <= 50 ? '#00C851' : accuracy <= 100 ? '#ffbb33' : '#ff4444',
+                fillOpacity: 0.2,
+                weight: 2
+            }).addTo(this.map);
+            
+            // Add location marker using your existing CSS
             this.currentLocationMarker = L.marker([lat, lng], {
                 icon: L.divIcon({
                     className: 'current-location-marker',
@@ -289,54 +291,29 @@ class BatangasJeepneySystem {
                 })
             })
             .addTo(this.map)
-            .bindPopup('<b>📍 Your Current Location</b>')
+            .bindPopup(`
+                <b>📍 Your Current Location</b><br>
+                Accuracy: ${Math.round(accuracy)} meters<br>
+                Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}
+            `)
             .openPopup();
             
-            // Center map on location with animation
-            this.map.flyTo([lat, lng], 16, {
-                duration: 1
-            });
+            // Center map on location
+            this.map.flyTo([lat, lng], 16, { duration: 1 });
             
-            // Set the input field immediately with coordinates
+            // Set the input field
             const inputField = field === 'start' ? 'startLocation' : 'endLocation';
             document.getElementById(inputField).value = `My Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
             
-            // Try to get better address name in background
-            setTimeout(async () => {
-                try {
-                    const address = await this.reverseGeocode(lat, lng);
-                    if (address && address !== 'My Current Location') {
-                        document.getElementById(inputField).value = address;
-                        console.log('Updated with address:', address);
-                    }
-                } catch (e) {
-                    console.log('Reverse geocoding failed, using coordinates');
-                }
-            }, 1000);
-            
-            alert('✅ Location found! Check the map for your location marker.');
-            
-        } catch (error) {
-            console.error('Location error details:', error);
-            let errorMessage = '❌ ';
-            
-            switch(error.code) {
-                case 1: // PERMISSION_DENIED
-                    errorMessage = '📍 Location access denied. Please:\n1. Allow location permissions for this site\n2. Refresh the page and try again';
-                    break;
-                case 2: // POSITION_UNAVAILABLE
-                    errorMessage = '📍 Location unavailable. Please check your GPS or network connection.';
-                    break;
-                case 3: // TIMEOUT
-                    errorMessage = '📍 Location request timed out. Please try again.';
-                    break;
-                default:
-                    errorMessage = '📍 Could not get your location. Please try again.';
+            // Show accuracy feedback
+            if (accuracy > 500) {
+                alert('📍 Location found (Low accuracy). For better results, enable GPS and go outside.');
             }
             
-            alert(errorMessage);
+        } catch (error) {
+            console.error('Location error:', error);
+            alert('❌ Could not get your location. Please ensure location services are enabled.');
         } finally {
-            // Reset button
             if (button) {
                 button.textContent = '📍 Use My Location';
                 button.disabled = false;
@@ -344,22 +321,113 @@ class BatangasJeepneySystem {
         }
     }
 
+    // NEW: Clear current location and destination
+    clearLocationAndRoutes() {
+        console.log('Clearing location inputs and routes...');
+        
+        // Clear input fields
+        document.getElementById('startLocation').value = '';
+        document.getElementById('endLocation').value = '';
+        
+        // Clear user location data
+        this.userLocation = null;
+        
+        // Remove location marker and accuracy circle from map
+        if (this.currentLocationMarker) {
+            this.map.removeLayer(this.currentLocationMarker);
+            this.currentLocationMarker = null;
+        }
+        if (this.accuracyCircle) {
+            this.map.removeLayer(this.accuracyCircle);
+            this.accuracyCircle = null;
+        }
+        
+        // Clear route options display
+        document.getElementById('route-options').innerHTML = '';
+        document.getElementById('route-options').style.display = 'none';
+        
+        // Clear all routes from map
+        routeManager.clearAllRoutesSilently();
+        
+        // Show confirmation
+        this.showNotification('🗑️ Location inputs and routes cleared!', 'info');
+        
+        console.log('Location inputs and routes cleared successfully');
+    }
+
+    // NEW: IP-based location fallback
+    async getIPBasedLocation() {
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            
+            if (data.latitude && data.longitude) {
+                console.log('IP-based location:', data);
+                return [data.latitude, data.longitude];
+            }
+        } catch (error) {
+            console.error('IP-based location failed:', error);
+        }
+        
+        // Fallback to Batangas city center
+        return [13.7565, 121.0583];
+    }
+
+    // IMPROVED Reverse Geocoding
     async reverseGeocode(lat, lng) {
         try {
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
             );
             const data = await response.json();
             
             if (data.display_name) {
-                // Return a shorter address
-                const addressParts = data.display_name.split(',');
-                return `${addressParts[0]}, ${addressParts[1]}, Batangas`;
+                // Return a shorter, more relevant address
+                const address = data.display_name;
+                
+                // Extract the most relevant parts
+                const parts = address.split(',');
+                if (parts.length >= 3) {
+                    // Return street/area, barangay, city
+                    return `${parts[0].trim()}, ${parts[1].trim()}, Batangas City`;
+                }
+                return address;
             }
         } catch (error) {
             console.error('Reverse geocoding error:', error);
         }
         return null;
+    }
+
+    // Helper method for notifications
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'info' ? '#17a2b8' : '#6c757d'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            font-weight: bold;
+            text-align: center;
+            max-width: 300px;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 }
 
@@ -516,40 +584,102 @@ class RouteManager {
         alert('All routes cleared!');
     }
 
-    async showAllRoutes() {
-        this.clearAllRoutes();
-        const hour = parseInt(document.getElementById('timeSlider').value);
+    clearAllRoutesSilently() {
+        console.log('Clearing all routes silently...');
         
-        for (const [routeName, routeData] of Object.entries(jeepneyRoutes)) {
-            try {
-                const route = await this.getRouteWithETA(
-                    routeData.waypoints, 
-                    routeData.secretWaypoints || [], 
-                    hour
-                );
-                const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-                
-                const routeLayer = L.polyline(latlngs, {
-                    color: routeData.color,
-                    weight: 4,
-                    opacity: 0.6,
-                    lineCap: 'round'
-                }).addTo(app.map);
-                
-                this.routeLayers[routeName] = {
-                    route: routeLayer,
-                    waypoints: null,
-                    data: routeData
-                };
-                
-                this.activeRoutes.push(routeName);
-            } catch (error) {
-                console.error(`Error showing route ${routeName}:`, error);
+        // Clear all route layers from map
+        Object.keys(this.routeLayers).forEach(routeName => {
+            const layerGroup = this.routeLayers[routeName];
+            
+            if (layerGroup.route) {
+                try {
+                    if (app.map.hasLayer(layerGroup.route)) {
+                        app.map.removeLayer(layerGroup.route);
+                    }
+                } catch (error) {
+                    console.warn(`Error removing route layer for ${routeName}:`, error);
+                }
             }
-        }
+            
+            if (layerGroup.waypoints) {
+                try {
+                    if (app.map.hasLayer(layerGroup.waypoints)) {
+                        app.map.removeLayer(layerGroup.waypoints);
+                    }
+                } catch (error) {
+                    console.warn(`Error removing waypoints for ${routeName}:`, error);
+                }
+            }
+        });
         
-        app.map.setView([13.7565, 121.0583], 13);
+        // Reset tracking
+        this.routeLayers = {};
+        this.activeRoutes = [];
+        
+        // Clear UI but don't show alert
         document.getElementById('route-details').style.display = 'none';
+        document.querySelectorAll('.route-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        console.log('All routes cleared silently');
+    }
+
+    async showAllRoutes() {
+        // Clear existing routes silently first
+        this.clearAllRoutesSilently();
+        
+        const hour = parseInt(document.getElementById('timeSlider').value);
+        let routesLoaded = 0;
+        
+        // Show loading
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            for (const [routeName, routeData] of Object.entries(jeepneyRoutes)) {
+                try {
+                    const route = await this.getRouteWithETA(
+                        routeData.waypoints, 
+                        routeData.secretWaypoints || [], 
+                        hour
+                    );
+                    const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                    
+                    const routeLayer = L.polyline(latlngs, {
+                        color: routeData.color,
+                        weight: 4,
+                        opacity: 0.6,
+                        lineCap: 'round'
+                    }).addTo(app.map);
+                    
+                    this.routeLayers[routeName] = {
+                        route: routeLayer,
+                        waypoints: null,
+                        data: routeData
+                    };
+                    
+                    this.activeRoutes.push(routeName);
+                    routesLoaded++;
+                    
+                } catch (error) {
+                    console.error(`Error showing route ${routeName}:`, error);
+                }
+            }
+            
+            // Show success message
+            if (routesLoaded > 0) {
+                app.showNotification(`✅ Showing all ${routesLoaded} jeepney routes!`, 'success');
+            } else {
+                app.showNotification('❌ No routes could be loaded', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error showing all routes:', error);
+            app.showNotification('❌ Error loading routes', 'error');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('route-details').style.display = 'none';
+        }
     }
 
     updateActiveRoute(routeName) {
@@ -563,6 +693,13 @@ class RouteManager {
     }
 
     updateRouteDetails(routeName, routeData, routeInfo, hour) {
+        // Don't show individual route details when showing transfer routes
+        // Check if we're currently showing a transfer route
+        const currentDetails = document.getElementById('route-details').innerHTML;
+        if (currentDetails.includes('Transfer Route')) {
+            return; // Don't override transfer route details
+        }
+        
         const detailsDiv = document.getElementById('route-details');
         const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
         
@@ -808,6 +945,10 @@ class RoutePlanner {
                     </div>
                 `;
             } else if (option.type === 'transfer') {
+                // Create safe route names for the onclick handler
+                const route1 = option.routes[0].replace(/'/g, "\\'");
+                const route2 = option.routes[1].replace(/'/g, "\\'");
+                
                 html += `
                     <div class="transfer-option">
                         <strong>${index + 1}. Transfer Route</strong>
@@ -826,7 +967,7 @@ class RoutePlanner {
                             <div class="route-info">
                                 🕐 Total: ${option.totalTime} min • 💰 Total Fare: ₱${option.totalFare}
                             </div>
-                            <button class="control-btn success" onclick="routePlanner.showTransferRoute(['${option.routes[0]}', '${option.routes[1]}'])">
+                            <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showTransferRoute(['${route1}', '${route2}'])">
                                 Show This Route
                             </button>
                         </div>
@@ -840,13 +981,116 @@ class RoutePlanner {
 
     // NEW: Show transfer route on map
     async showTransferRoute(routeNames) {
-        routeManager.clearAllRoutes();
+        console.log('Showing transfer route:', routeNames);
         
-        for (const routeName of routeNames) {
+        // Clear existing routes first but don't show alert
+        routeManager.clearAllRoutesSilently();
+        
+        // Show loading
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            // Show all routes in the transfer
+            for (const routeName of routeNames) {
+                const routeData = jeepneyRoutes[routeName];
+                if (routeData) {
+                    await routeManager.createSnappedRoute(routeName, routeData);
+                }
+            }
+            
+            // Create a custom route details for the transfer
+            this.showTransferRouteDetails(routeNames);
+            
+        } catch (error) {
+            console.error('Error showing transfer route:', error);
+            alert('Error displaying transfer route. Please try again.');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // NEW: Show detailed information for transfer routes
+    showTransferRouteDetails(routeNames) {
+        const detailsDiv = document.getElementById('route-details');
+        
+        let totalFare = 0;
+        let totalTime = 0;
+        let routeDescriptions = [];
+        
+        routeNames.forEach((routeName, index) => {
             const routeData = jeepneyRoutes[routeName];
             if (routeData) {
-                await routeManager.createSnappedRoute(routeName, routeData);
+                totalFare += this.extractFare(routeData.fare);
+                totalTime += routeData.baseTime;
+                
+                if (index < routeNames.length - 1) {
+                    totalTime += 10; // Add 10 minutes for each transfer
+                }
+                
+                routeDescriptions.push({
+                    name: routeName,
+                    description: routeData.description,
+                    fare: routeData.fare,
+                    time: routeData.baseTime
+                });
             }
+        });
+        
+        let routeHtml = '';
+        routeDescriptions.forEach((route, index) => {
+            routeHtml += `
+                <div class="route-leg">
+                    <strong>Leg ${index + 1}: ${route.name}</strong><br>
+                    <small>${route.description}</small><br>
+                    🕐 ${route.time} min • 💰 ${route.fare}
+                </div>
+            `;
+            
+            if (index < routeDescriptions.length - 1) {
+                routeHtml += `
+                    <div class="transfer-point">
+                        🔄 Transfer Point
+                    </div>
+                `;
+            }
+        });
+        
+        detailsDiv.innerHTML = `
+            <h4>🔄 Transfer Route</h4>
+            <div class="transfer-route">
+                ${routeHtml}
+                <div class="route-info" style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 6px;">
+                    <strong>Total Journey:</strong><br>
+                    🕐 Total Time: ${totalTime} minutes<br>
+                    💰 Total Fare: ₱${totalFare}<br>
+                    🚍 ${routeNames.length} jeepney${routeNames.length > 1 ? 's' : ''}<br>
+                    🔄 ${routeNames.length - 1} transfer${routeNames.length - 1 > 1 ? 's' : ''}
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button class="control-btn secondary" onclick="routePlanner.saveFavoriteTransferRoute(['${routeNames.join("','")}'])">
+                    ⭐ Save This Transfer
+                </button>
+                <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
+                    🗑️ Clear Routes
+                </button>
+            </div>
+        `;
+        detailsDiv.style.display = 'block';
+    }
+
+    // NEW: Save favorite transfer route
+    saveFavoriteTransferRoute(routeNames) {
+        const favorites = JSON.parse(localStorage.getItem('favoriteTransfers') || '[]');
+        const transferKey = routeNames.join('|');
+        
+        if (!favorites.includes(transferKey)) {
+            favorites.push(transferKey);
+            localStorage.setItem('favoriteTransfers', JSON.stringify(favorites));
+            alert(`Saved transfer route to favorites!`);
+        } else {
+            alert(`This transfer route is already in your favorites!`);
         }
     }
 
@@ -942,4 +1186,9 @@ window.resetSystem = function() {
     document.getElementById('startLocation').value = '';
     document.getElementById('endLocation').value = '';
     alert('System has been reset!');
+};
+
+// NEW: Clear inputs and routes function
+window.clearInputsAndRoutes = function() {
+    app.clearLocationAndRoutes();
 };

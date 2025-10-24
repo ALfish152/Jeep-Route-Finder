@@ -18,26 +18,27 @@
         <input type="text" class="search-box" placeholder="🔍 Search routes..." id="searchBox">
         
         <div class="route-planner">
-            <h4 class="section-title">📍 Route Planner</h4>
-            
-            <div class="location-buttons">
-                <button class="location-btn" onclick="app.useMyLocation('start', event)">📍 Use My Location (Start)</button>
-                <button class="location-btn" onclick="app.useMyLocation('end', event)">📍 Use My Location (End)</button>
-            </div>
-            
-            <div class="input-with-suggestions">
-                <input type="text" id="startLocation" placeholder="Start location" class="search-box" style="margin-bottom: 5px;">
-                <div class="suggestions-list" id="startSuggestions"></div>
-            </div>
-            
-            <div class="input-with-suggestions">
-                <input type="text" id="endLocation" placeholder="Destination" class="search-box" style="margin-bottom: 10px;">
-                <div class="suggestions-list" id="endSuggestions"></div>
-            </div>
-            
-            <button class="control-btn success" onclick="routePlanner.planRoute()">Find Best Route</button>
-            <div id="route-options" class="route-options"></div>
-        </div>
+    <h4 class="section-title">📍 Route Planner</h4>
+    
+    <div class="location-buttons">
+        <button class="location-btn" onclick="app.useMyLocation('start', event)">📍 Use My Location (Start)</button>
+        <button class="location-btn" onclick="app.useMyLocation('end', event)">📍 Use My Location (End)</button>
+    </div>
+    
+    <div class="input-with-suggestions">
+        <input type="text" id="startLocation" placeholder="Start location" class="search-box" style="margin-bottom: 5px;">
+        <div class="suggestions-list" id="startSuggestions"></div>
+    </div>
+    
+    <div class="input-with-suggestions">
+        <input type="text" id="endLocation" placeholder="Destination" class="search-box" style="margin-bottom: 10px;">
+        <div class="suggestions-list" id="endSuggestions"></div>
+    </div>
+    
+    <button class="control-btn success" onclick="routePlanner.planRoute()">Find Best Route</button>
+    <button class="control-btn secondary" onclick="clearInputsAndRoutes()">🗑️ Clear All</button>
+    <div id="route-options" class="route-options"></div>
+</div>
         
         <div class="route-controls">
             <button class="control-btn" onclick="routeManager.showAllRoutes()">Show All Routes</button>
