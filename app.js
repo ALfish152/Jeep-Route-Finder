@@ -82,6 +82,30 @@ class BatangasJeepneySystem {
                 document.getElementById('endSuggestions').style.display = 'none';
             }
         });
+
+        // Student / PWD discount toggle: refresh displayed fares when changed
+        const discountToggle = document.getElementById('discountToggle');
+        if (discountToggle) {
+            discountToggle.addEventListener('change', () => {
+                // Refresh routes list display
+                this.populateRoutesList();
+
+                // Refresh currently shown route details (if any)
+                try {
+                    if (routeManager.activeRoutes.length > 0) {
+                        const active = routeManager.activeRoutes[0];
+                        const data = routeManager.routeLayers[active]?.data || jeepneyRoutes[active];
+                        if (data) {
+                            const hour = parseInt(document.getElementById('timeSlider').value);
+                            // pass an empty routeInfo so ETA logic falls back to baseTime
+                            routeManager.updateRouteDetails(active, data, {}, hour);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Error refreshing route details after discount toggle:', err);
+                }
+            });
+        }
     }
 
     initializeUI() {
@@ -89,6 +113,25 @@ class BatangasJeepneySystem {
         this.updateTimeDisplay(12);
         this.updateFavoritesList();
         this.updateStatistics();
+    }
+
+    // Format fare string and apply Student/PWD discount if enabled
+    formatFare(fareStr) {
+        const discountEnabled = document.getElementById('discountToggle')?.checked;
+        const discount = discountEnabled ? 2 : 0;
+        if (!fareStr || discount === 0) return fareStr;
+
+        // Extract numbers and apply discount
+        const nums = fareStr.match(/(\d+)/g);
+        if (!nums) return fareStr;
+
+        const adjusted = nums.map(n => Math.max(parseInt(n, 10) - discount, 0));
+
+        if (adjusted.length === 1) {
+            return `₱${adjusted[0]}`;
+        }
+        // If range
+        return `₱${adjusted[0]}-₱${adjusted[1]}`.replace(/₱(\d+)-₱(\d+)/, '₱$1-$2');
     }
 
     showSuggestions(query, suggestionsId) {
@@ -181,7 +224,7 @@ class BatangasJeepneySystem {
                     <span class="route-type-badge type-${routeData.type}">${routeData.type}</span>
                     <span style="background: ${routeData.color}; padding: 2px 6px; border-radius: 3px; color: ${routeData.color === '#ffffff' ? 'black' : 'white'}; font-size: 0.7em;">${colorName}</span><br>
                     Frequency: ${routeData.frequency}<br>
-                    Fare: ${routeData.fare} | Stops: ${routeData.stops}
+                    Fare: ${this.formatFare(routeData.fare)} | Stops: ${routeData.stops}
                 </div>
             `;
             
@@ -480,8 +523,8 @@ class BatangasJeepneySystem {
                         ${rec.type === 'tricycle' ? `<br>🕐 ${rec.time} min • 💰 ${rec.fare}` : ''}
                     </div>
                     <div class="route-info">
-                        ${route.routeData.description}<br>
-                        Frequency: ${route.routeData.frequency} • Fare: ${route.routeData.fare}
+                ${route.routeData.description}<br>
+                Frequency: ${route.routeData.frequency} • Fare: ${this.formatFare(route.routeData.fare)}
                     </div>
                     <button class="control-btn success" onclick="routeManager.createSnappedRoute('${route.routeName}', jeepneyRoutes['${route.routeName}'])">
                         Show This Route
@@ -982,7 +1025,7 @@ class RouteManager {
             <p><strong>Estimated Time:</strong> ${totalMinutes} minutes</p>
             <p><strong>Traffic:</strong> <span class="traffic-indicator ${trafficClass}"></span>${traffic.level.toUpperCase()}</p>
             <p><strong>Frequency:</strong> ${routeData.frequency}</p>
-            <p><strong>Fare:</strong> ${routeData.fare}</p>
+            <p><strong>Fare:</strong> ${app.formatFare(routeData.fare)}</p>
             <p><strong>Operator:</strong> ${routeData.operator}</p>
             
             <div style="margin-top: 15px;">
@@ -1188,8 +1231,13 @@ class RoutePlanner {
     }
 
     extractFare(fareString) {
-        const match = fareString.match(/₱(\d+)/);
-        return match ? parseInt(match[1]) : 15; // Default to ₱15 if not found
+        // Extract base numeric fare and apply Student/PWD discount (₱2) if enabled
+        const match = fareString.match(/₱?(\d+)/);
+        let value = match ? parseInt(match[1], 10) : 15; // Default to ₱15 if not found
+        const discountEnabled = document.getElementById('discountToggle')?.checked;
+        const discount = discountEnabled ? 2 : 0;
+        value = Math.max(value - discount, 0);
+        return value;
     }
 
     displayRouteOptions(routeOptions, start, end) {
@@ -1305,7 +1353,7 @@ class RoutePlanner {
                 <div class="route-leg">
                     <strong>Leg ${index + 1}: ${route.name}</strong><br>
                     <small>${route.description}</small><br>
-                    🕐 ${route.time} min • 💰 ${route.fare}
+                    🕐 ${route.time} min • 💰 ${app.formatFare(route.fare)}
                 </div>
             `;
             
