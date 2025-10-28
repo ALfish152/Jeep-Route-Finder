@@ -360,7 +360,7 @@ class BatangasJeepneySystem {
             
             // NEW: Find nearest jeepney routes with dynamic radius
             await this.findNearestJeepneyRoutes([lat, lng]);
-            
+
         } catch (error) {
             console.error('Location error:', error);
             alert('❌ Could not get your location. Please ensure location services are enabled.');
@@ -371,6 +371,27 @@ class BatangasJeepneySystem {
             }
         }
     }
+   // use for start location with route finding
+    async useMyLocationWithRoutes(field, event) {
+    await this.useMyLocation(field, event);
+    // Route finding is already built into your original function
+}
+//use for destination without route finding
+async useMyLocationNoRoutes(field, event) {
+    // Temporarily disable route finding
+    const originalFindNearestJeepneyRoutes = this.findNearestJeepneyRoutes;
+    this.findNearestJeepneyRoutes = async () => {
+        // Do nothing - skip route finding
+        console.log('Skipping route finding for simple location');
+    };
+    
+    try {
+        await this.useMyLocation(field, event);
+    } finally {
+        // Restore the original function
+        this.findNearestJeepneyRoutes = originalFindNearestJeepneyRoutes;
+    }
+}
 
     // NEW: Find nearest jeepney routes with dynamic radius expansion
     async findNearestJeepneyRoutes(userLocation) {
@@ -788,7 +809,7 @@ class RouteManager {
                     `)
                     .addTo(waypointsLayer);
             });
-            
+                        
             // Store the layer
             this.routeLayers[routeName] = {
                 route: routeLayer,
@@ -845,51 +866,6 @@ class RouteManager {
         }
     }
 
-    clearAllRoutes() {
-        console.log('Clearing all routes...');
-        
-        // Clear all route layers from map
-        Object.keys(this.routeLayers).forEach(routeName => {
-            const layerGroup = this.routeLayers[routeName];
-            
-            if (layerGroup.route) {
-                try {
-                    if (app.map.hasLayer(layerGroup.route)) {
-                        app.map.removeLayer(layerGroup.route);
-                    }
-                } catch (error) {
-                    console.warn(`Error removing route layer for ${routeName}:`, error);
-                }
-            }
-            
-            if (layerGroup.waypoints) {
-                try {
-                    if (app.map.hasLayer(layerGroup.waypoints)) {
-                        app.map.removeLayer(layerGroup.waypoints);
-                    }
-                } catch (error) {
-                    console.warn(`Error removing waypoints for ${routeName}:`, error);
-                }
-            }
-        });
-        
-        // Reset tracking
-        this.routeLayers = {};
-        this.activeRoutes = [];
-        
-        // Clear UI
-        document.getElementById('route-details').style.display = 'none';
-        document.querySelectorAll('.route-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        // Reset map view
-        app.map.setView([13.7565, 121.0583], 13);
-        
-        console.log('All routes cleared successfully');
-        alert('All routes cleared!');
-    }
-
     clearAllRoutesSilently() {
         console.log('Clearing all routes silently...');
         
@@ -930,7 +906,7 @@ class RouteManager {
         
         console.log('All routes cleared silently');
     }
-
+    
     async showAllRoutes() {
         // Clear existing routes silently first
         this.clearAllRoutesSilently();

@@ -21,8 +21,8 @@
     <h4 class="section-title">📍 Route Planner</h4>
     
     <div class="location-buttons">
-        <button class="location-btn" onclick="app.useMyLocation('start', event)">📍 Use My Location (Start)</button>
-        <button class="location-btn" onclick="app.useMyLocation('end', event)">📍 Use My Location (End)</button>
+        <button class="location-btn" onclick="app.useMyLocationWithRoutes('start', event)">📍 Use My Location (Start)</button>
+        <button class="location-btn" onclick="app.useMyLocationNoRoutes('end', event)">📍 Use My Location (End)</button>
     </div>
     
     <div class="input-with-suggestions">
@@ -48,7 +48,6 @@
         
         <div class="route-controls">
             <button class="control-btn" onclick="routeManager.showAllRoutes()">Show All Routes</button>
-            <button class="control-btn secondary" onclick="routeManager.clearAllRoutes()">Clear All Routes</button>
             <button class="control-btn" onclick="trafficLayer.toggleTraffic()" id="trafficToggle">Show Traffic</button>
         </div>
         

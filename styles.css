@@ -24,13 +24,13 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    width: 450px;
+    width: 400px;
     background: white;
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     z-index: 1000;
-    max-height: 90vh;
+    max-height: 95vh;
     overflow-y: auto;
     transition: transform 0.3s ease;
 }
@@ -53,7 +53,7 @@ body {
 }
 
 .route-item {
-    padding: 15px;
+    padding: 10px;
     margin: 10px 0;
     border: 1px solid #e1e5e9;
     border-radius: 8px;
@@ -149,7 +149,7 @@ body {
 .legend-item {
     display: flex;
     align-items: center;
-    margin: 8px 0;
+    margin: 5px 0;
 }
 
 .legend-color {
