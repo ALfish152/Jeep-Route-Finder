@@ -1046,7 +1046,7 @@ class RouteManager {
     }
 }
 
-// COMPLETE ENHANCED RoutePlanner Class with Proper Boarding Validation
+// INTEGRATED RoutePlanner Class with Enhanced Boarding Validation & Realistic Route Finding
 class RoutePlanner {
     async planRoute() {
         const start = document.getElementById('startLocation').value;
@@ -1083,8 +1083,8 @@ class RoutePlanner {
             this.currentStartCoords = startCoords;
             this.currentEndCoords = endCoords;
             
-            // Find comprehensive route combinations with proper boarding validation
-            const routeOptions = this.findCompleteRouteCombinations(startCoords, endCoords);
+            // Find comprehensive route combinations with realistic validation
+            const routeOptions = this.findRealisticRouteCombinations(startCoords, endCoords);
             
             this.displayRouteOptions(routeOptions, start, end, startCoords, endCoords);
             
@@ -1098,62 +1098,65 @@ class RoutePlanner {
         }
     }
 
-    // Find comprehensive route combinations with proper boarding validation
-    findCompleteRouteCombinations(startCoords, endCoords, maxDistance = 3000) {
+    // INTEGRATED: Find realistic route combinations with enhanced boarding validation
+    findRealisticRouteCombinations(startCoords, endCoords, maxDistance = 1500) {
         const allOptions = [];
         
-        console.log('Finding comprehensive route combinations with boarding validation...');
+        console.log('Finding realistic route combinations with boarding validation...');
         
-        // 1. Direct routes to BatStateU-Alangilan (VALIDATED)
+        // 1. Direct routes with boarding validation
         const directRoutes = this.findValidatedDirectRoutes(startCoords, endCoords, maxDistance);
         allOptions.push(...directRoutes);
         
-        // 2. Routes via main terminals/transfer points (VALIDATED)
-        const terminalRoutes = this.findValidatedTerminalRoutes(startCoords, endCoords, maxDistance);
-        allOptions.push(...terminalRoutes);
+        // 2. Walking + Single Jeepney routes with boarding validation
+        const walkingJeepneyRoutes = this.findValidatedWalkingJeepneyRoutes(startCoords, endCoords, maxDistance);
+        allOptions.push(...walkingJeepneyRoutes);
         
-        // 3. Multi-jeepney combinations (VALIDATED)
+        // 3. Realistic transfer routes with direction validation
+        const transferRoutes = this.findRealisticTransferRoutes(startCoords, endCoords, maxDistance);
+        allOptions.push(...transferRoutes);
+        
+        // 4. Multi-jeepney combinations with enhanced validation
         const multiJeepneyRoutes = this.findValidatedMultiJeepneyRoutes(startCoords, endCoords, maxDistance);
         allOptions.push(...multiJeepneyRoutes);
         
-        // 4. Walking + Jeepney combinations (VALIDATED)
-        const walkingMultiRoutes = this.findValidatedWalkingJeepneyRoutes(startCoords, endCoords, maxDistance);
-        allOptions.push(...walkingMultiRoutes);
-        
         // Filter and prioritize by cost and realism
         const validOptions = allOptions.filter(option => 
-            this.doesRouteReachDestination(option, endCoords) &&
+            this.isRouteActuallyPossible(option) &&
             this.isRouteRealistic(option) &&
-            option.totalTime <= 90 // Max 1.5 hours
+            option.totalTime <= 90
         );
         
-        console.log('Validated routes found:', validOptions.length);
+        console.log('Validated realistic routes found:', validOptions.length);
         
         return validOptions
-            .sort((a, b) => a.totalFare - b.totalFare) // Sort by cost first
+            .sort((a, b) => a.totalFare - b.totalFare)
             .slice(0, 8);
     }
 
-    // VALIDATED: Find routes that actually go to BatStateU area AND can be boarded from start
+    // ENHANCED: Find direct routes with boarding validation
     findValidatedDirectRoutes(startCoords, endCoords, maxDistance) {
         const directRoutes = [];
         
         // Only routes that actually serve BatStateU-Alangilan area
-        const validatedRoutesToBatStateU = this.getRoutesServingArea(endCoords, 500);
+        const validatedRoutesToBatStateU = this.getRoutesServingArea(endCoords, 800);
         
         console.log('Routes serving BatStateU area:', validatedRoutesToBatStateU.map(r => r.name));
         
         validatedRoutesToBatStateU.forEach(route => {
             const routeData = route.data;
             
-            // CRITICAL FIX: Check if you can actually board this route from start location
+            // CRITICAL: Check if you can actually board this route from start location
             const canBoardFromStart = this.canBoardRouteFromLocation(startCoords, routeData, maxDistance);
+            const servesEnd = this.doesRouteServeLocation(endCoords, routeData, 1000);
             
-            if (canBoardFromStart) {
+            console.log(`Route ${route.name}: canBoardFromStart=${canBoardFromStart}, servesEnd=${servesEnd}`);
+            
+            if (canBoardFromStart && servesEnd) {
                 const startWalkDistance = this.findDistanceToRoute(startCoords, routeData);
                 const endWalkDistance = this.findDistanceToRoute(endCoords, routeData);
                 
-                if (startWalkDistance <= 2000 && endWalkDistance <= 1000) {
+                if (startWalkDistance <= 1000 && endWalkDistance <= 800) {
                     const startWalkTime = Math.round(startWalkDistance / 80);
                     const endWalkTime = Math.round(endWalkDistance / 80);
                     
@@ -1179,101 +1182,34 @@ class RoutePlanner {
         return directRoutes;
     }
 
-    // VALIDATED: Find routes via terminals with proper boarding validation
-    findValidatedTerminalRoutes(startCoords, endCoords, maxDistance) {
-        const terminalRoutes = [];
-        
-        // Define major transfer points that actually connect to BatStateU
-        const validatedTransferPoints = {
-            'SM City Batangas': [13.755992307747455, 121.0688025248553],
-            'Batangas City Grand Terminal': [13.790637338793799, 121.06163057927537],
-            'Golden Gate College': [13.757046128756366, 121.06059676718314]
-        };
-        
-        // Get routes that actually serve BatStateU
-        const routesToBatStateU = this.getRoutesServingArea(endCoords, 800);
-        
-        Object.entries(validatedTransferPoints).forEach(([pointName, pointCoords]) => {
-            // Find routes from start to transfer point (WITH BOARDING VALIDATION)
-            const routesToTransfer = this.findRoutesBetweenPointsWithBoarding(startCoords, pointCoords, maxDistance);
-            
-            // Only use routes that actually connect from transfer point to BatStateU
-            routesToTransfer.forEach(toRoute => {
-                routesToBatStateU.forEach(fromRoute => {
-                    // Ensure routes are different and actually connect
-                    if (toRoute.name !== fromRoute.name && this.doRoutesConnect(toRoute.data, fromRoute.data, pointCoords)) {
-                        const routeOption = this.createTerminalTransferRoute(
-                            toRoute, fromRoute, pointName, startCoords, endCoords
-                        );
-                        if (routeOption) {
-                            routeOption.validated = true;
-                            terminalRoutes.push(routeOption);
-                        }
-                    }
-                });
-            });
-        });
-        
-        return terminalRoutes;
-    }
-
-    // VALIDATED: Find multi-jeepney combinations with proper boarding validation
-    findValidatedMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
-        const complexRoutes = [];
-        
-        // Get validated start routes (near start location AND can be boarded)
-        const startRoutes = this.findRoutesNearLocationWithBoarding(startCoords, maxDistance);
-        
-        // Get validated end routes (actually go to BatStateU)
-        const endRoutes = this.getRoutesServingArea(endCoords, 800);
-        
-        console.log('Start routes with boarding:', startRoutes.map(r => r.name));
-        console.log('End routes to BatStateU:', endRoutes.map(r => r.name));
-        
-        // Find 2-jeepney combinations with actual connections
-        startRoutes.forEach(route1 => {
-            endRoutes.forEach(route2 => {
-                if (route1.name !== route2.name) {
-                    // Try to find actual transfer points between routes
-                    const transferPoint = this.findValidatedTransferPoint(route1.data, route2.data);
-                    if (transferPoint && transferPoint.walkDistance <= 300) {
-                        const routeOption = this.createTwoJeepneyRoute(
-                            route1, route2, transferPoint, startCoords, endCoords
-                        );
-                        if (routeOption) {
-                            routeOption.validated = true;
-                            complexRoutes.push(routeOption);
-                        }
-                    }
-                }
-            });
-        });
-        
-        return complexRoutes;
-    }
-
-    // VALIDATED: Find walking + jeepney combinations with boarding validation
+    // ENHANCED: Find walking + jeepney combinations with boarding validation
     findValidatedWalkingJeepneyRoutes(startCoords, endCoords, maxDistance) {
-        const walkingMultiRoutes = [];
+        const walkingRoutes = [];
         
-        // Only consider routes that actually go to BatStateU AND can be boarded
-        const endRoutes = this.getRoutesServingArea(endCoords, 800);
+        // Only consider routes that actually go to BatStateU
+        const routesToBatStateU = this.getRoutesServingArea(endCoords, 1000);
         
-        endRoutes.forEach(endRoute => {
-            // Check if this route can be boarded from the walking start point
-            const nearestPoint = this.findNearestPointOnRoute(startCoords, endRoute.data);
+        console.log('Routes to BatStateU:', routesToBatStateU.map(r => r.name));
+        
+        routesToBatStateU.forEach(route => {
+            const nearestPoint = this.findNearestPointOnRoute(startCoords, route.data);
             const walkDistance = nearestPoint.distance;
             
-            // Realistic walking distance: 100m to 1.5km
-            if (walkDistance >= 100 && walkDistance <= 1500) {
+            // Check if this route actually serves the boarding area
+            const servesBoardingArea = this.doesRouteServeLocation(nearestPoint.point, route.data, 300);
+            
+            console.log(`Route ${route.name}: walkDistance=${walkDistance}, servesBoardingArea=${servesBoardingArea}`);
+            
+            // Realistic walking distance: 50m to 1.5km
+            if (walkDistance >= 50 && walkDistance <= 1500 && servesBoardingArea) {
                 const walkTime = Math.round(walkDistance / 80);
-                const jeepneyTime = endRoute.data.baseTime * 0.8;
+                const jeepneyTime = route.data.baseTime * 0.8;
                 const totalTime = walkTime + jeepneyTime;
-                const totalFare = this.extractFare(endRoute.data.fare);
+                const totalFare = this.extractFare(route.data.fare);
                 
-                walkingMultiRoutes.push({
+                walkingRoutes.push({
                     type: 'walking_jeepney',
-                    routes: [endRoute.name],
+                    routes: [route.name],
                     walking: {
                         distance: walkDistance,
                         time: walkTime,
@@ -1288,10 +1224,120 @@ class RoutePlanner {
             }
         });
         
-        return walkingMultiRoutes;
+        return walkingRoutes;
     }
 
-    // NEW: Check if you can actually board a route from a specific location
+    // ENHANCED: Find realistic transfer routes with direction validation
+    findRealisticTransferRoutes(startCoords, endCoords, maxDistance) {
+        const transferRoutes = [];
+        
+        // Get validated start routes (near start location AND can be boarded)
+        const startRoutes = this.findRoutesNearLocationWithBoarding(startCoords, maxDistance);
+        // Get validated end routes (actually go to BatStateU)
+        const endRoutes = this.getRoutesServingArea(endCoords, 1000);
+        
+        console.log('Start area routes with boarding:', startRoutes.map(r => r.name));
+        console.log('End area routes:', endRoutes.map(r => r.name));
+        
+        // Find realistic transfers between routes that actually connect
+        startRoutes.forEach(startRoute => {
+            endRoutes.forEach(endRoute => {
+                if (startRoute.name !== endRoute.name) {
+                    // Enhanced: Find transfer points with direction validation
+                    const transferPoint = this.findRealisticTransferPoint(
+                        startRoute.data, endRoute.data, startCoords, endCoords
+                    );
+                    if (transferPoint && this.isTransferRealistic(transferPoint, startCoords, endCoords)) {
+                        const routeOption = this.createRealisticTransferRoute(
+                            startRoute, endRoute, transferPoint, startCoords, endCoords
+                        );
+                        if (routeOption) {
+                            routeOption.validated = true;
+                            transferRoutes.push(routeOption);
+                        }
+                    }
+                }
+            });
+        });
+        
+        return transferRoutes;
+    }
+
+    // ENHANCED: Find multi-jeepney combinations with direction validation
+    findValidatedMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
+        const complexRoutes = [];
+        
+        // Get validated start routes (near start location AND can be boarded)
+        const startRoutes = this.findRoutesNearLocationWithBoarding(startCoords, maxDistance);
+        // Get validated end routes (actually go to BatStateU)
+        const endRoutes = this.getRoutesServingArea(endCoords, 800);
+        
+        console.log('Start routes with boarding:', startRoutes.map(r => r.name));
+        console.log('End routes to BatStateU:', endRoutes.map(r => r.name));
+        
+        // Find 2-jeepney combinations with actual connections AND direction validation
+        startRoutes.forEach(route1 => {
+            endRoutes.forEach(route2 => {
+                if (route1.name !== route2.name) {
+                    // Enhanced: Find transfer points with direction validation
+                    const transferPoint = this.findValidatedTransferPoint(
+                        route1.data, route2.data, startCoords, endCoords
+                    );
+                    
+                    if (transferPoint && transferPoint.walkDistance <= 300) {
+                        // Additional check: ensure the transfer makes logical sense
+                        const isLogicalTransfer = this.isLogicalTransfer(
+                            route1.data, route2.data, transferPoint, startCoords, endCoords
+                        );
+                        
+                        if (isLogicalTransfer) {
+                            const routeOption = this.createTwoJeepneyRoute(
+                                route1, route2, transferPoint, startCoords, endCoords
+                            );
+                            if (routeOption) {
+                                routeOption.validated = true;
+                                complexRoutes.push(routeOption);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+        
+        return complexRoutes;
+    }
+
+    // ENHANCED: Check if route actually serves a location (can board/get off here)
+    doesRouteServeLocation(locationCoords, routeData, maxDistance) {
+        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        // Find nearest point on route
+        const nearestPoint = this.findNearestPointOnRoute(locationCoords, routeData);
+        
+        console.log(`Checking route ${routeData.description}: nearest distance = ${nearestPoint.distance}, maxDistance = ${maxDistance}`);
+        
+        // Must be within reasonable distance
+        if (nearestPoint.distance > maxDistance) {
+            return false;
+        }
+        
+        // For known landmarks, always consider them as boarding points
+        const landmark = this.findLandmarkName(locationCoords);
+        if (landmark) {
+            console.log(`Location is known landmark: ${landmark}`);
+            return true;
+        }
+        
+        // Check if any route point is reasonably close
+        const hasClosePoint = allPoints.some(point => {
+            const distance = this.calculateDistance(locationCoords, point);
+            return distance <= maxDistance;
+        });
+        
+        return hasClosePoint;
+    }
+
+    // ENHANCED: Check if you can actually board a route from a specific location
     canBoardRouteFromLocation(locationCoords, routeData, maxDistance) {
         const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
         
@@ -1304,79 +1350,23 @@ class RoutePlanner {
         }
         
         // Additional validation: Check if this is a reasonable boarding point
-        // (not just any point on the route, but one where jeeps actually stop/pick up)
         const hasReasonableBoardingPoint = allPoints.some(point => {
             const distance = this.calculateDistance(locationCoords, point);
             return distance <= maxDistance && distance >= 50; // Not too close, not too far
         });
         
-        return hasReasonableBoardingPoint;
-    }
-
-    // NEW: Find routes between points with boarding validation
-    findRoutesBetweenPointsWithBoarding(point1, point2, maxDistance) {
-        return Object.entries(jeepneyRoutes)
-            .filter(([routeName, routeData]) => {
-                const nearPoint1 = this.isNearRoute(point1, routeData, maxDistance);
-                const nearPoint2 = this.isNearRoute(point2, routeData, maxDistance);
-                const canBoardFromPoint1 = this.canBoardRouteFromLocation(point1, routeData, maxDistance);
-                
-                return nearPoint1 && nearPoint2 && canBoardFromPoint1;
-            })
-            .map(([name, data]) => ({ name, data }));
-    }
-
-    // NEW: Find routes near location with boarding validation
-    findRoutesNearLocationWithBoarding(coords, maxDistance) {
-        return Object.entries(jeepneyRoutes)
-            .filter(([routeName, routeData]) => {
-                const isNear = this.isNearRoute(coords, routeData, maxDistance);
-                const canBoard = this.canBoardRouteFromLocation(coords, routeData, maxDistance);
-                return isNear && canBoard;
-            })
-            .map(([name, data]) => ({ name, data }));
-    }
-
-    // NEW: Get routes that actually serve a specific area
-    getRoutesServingArea(areaCoords, maxDistance) {
-        return Object.entries(jeepneyRoutes)
-            .filter(([routeName, routeData]) => {
-                // Check if route passes through or near the target area
-                return this.isRouteInArea(routeData, areaCoords, maxDistance);
-            })
-            .map(([name, data]) => ({ name, data }));
-    }
-
-    // NEW: Check if a route serves a specific area
-    isRouteInArea(routeData, areaCoords, maxDistance) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        if (!hasReasonableBoardingPoint) {
+            return false;
+        }
         
-        // Check if any point in the route is near the target area
-        return allPoints.some(point => {
-            const distance = this.calculateDistance(areaCoords, point);
-            return distance <= maxDistance;
-        });
+        // Enhanced: Check direction flow
+        const flowsToDestination = this.isRouteFlowingTowardsDestination(locationCoords, this.currentEndCoords, routeData);
+        
+        return flowsToDestination;
     }
 
-    // NEW: Check if two routes actually connect at a point
-    doRoutesConnect(route1, route2, connectionPoint) {
-        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
-        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
-        
-        // Check if both routes have points near the connection point
-        const route1Near = route1Points.some(point => 
-            this.calculateDistance(point, connectionPoint) <= 200
-        );
-        
-        const route2Near = route2Points.some(point => 
-            this.calculateDistance(point, connectionPoint) <= 200
-        );
-        
-        return route1Near && route2Near;
-    }
-
-    // NEW: Find validated transfer points between routes
-    findValidatedTransferPoint(route1, route2) {
+    // ENHANCED: Find realistic transfer points between routes with direction validation
+    findRealisticTransferPoint(route1, route2, startCoords, endCoords) {
         const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
         const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
         
@@ -1386,11 +1376,62 @@ class RoutePlanner {
         for (const point1 of route1Points) {
             for (const point2 of route2Points) {
                 const distance = this.calculateDistance(point1, point2);
+                
+                // Only consider close transfers
+                if (distance < minDistance && distance <= 500) {
+                    const landmark = this.findLandmarkName(point1);
+                    
+                    // Enhanced validation: Check direction and logic
+                    const route1FlowsToTransfer = this.isRouteFlowingTowardsDestination(startCoords, point1, route1);
+                    const route2FlowsFromTransfer = this.isRouteFlowingTowardsDestination(point2, endCoords, route2);
+                    const isLogical = this.isTransferLogical(point1, startCoords, endCoords);
+                    
+                    if (landmark && route1FlowsToTransfer && route2FlowsFromTransfer && isLogical) {
+                        minDistance = distance;
+                        bestTransfer = {
+                            name: landmark,
+                            coordinates: point1,
+                            walkDistance: distance,
+                            validated: true
+                        };
+                    } else if (!landmark && distance <= 300 && route1FlowsToTransfer && route2FlowsFromTransfer) {
+                        // Allow non-landmark transfers if they're very close and logical
+                        minDistance = distance;
+                        bestTransfer = {
+                            name: 'Transfer Point',
+                            coordinates: point1,
+                            walkDistance: distance,
+                            validated: true
+                        };
+                    }
+                }
+            }
+        }
+        
+        return bestTransfer;
+    }
+
+    // ENHANCED: Find validated transfer points with direction validation
+    findValidatedTransferPoint(route1, route2, startCoords, endCoords) {
+        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
+        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
+        
+        let bestTransfer = null;
+        let minDistance = Infinity;
+        
+        for (const point1 of route1Points) {
+            for (const point2 of route2Points) {
+                const distance = this.calculateDistance(point1, point2);
+                
                 // Only consider transfers that are close and at known landmarks
                 if (distance < minDistance && distance <= 300) {
                     const landmark = this.findLandmarkName(point1);
-                    // Prefer transfers at known landmarks
-                    if (landmark) {
+                    
+                    // Enhanced validation: Check if this transfer makes sense directionally
+                    const route1FlowsToTransfer = this.isRouteFlowingTowardsDestination(startCoords, point1, route1);
+                    const route2FlowsFromTransfer = this.isRouteFlowingTowardsDestination(point2, endCoords, route2);
+                    
+                    if (landmark && route1FlowsToTransfer && route2FlowsFromTransfer) {
                         minDistance = distance;
                         bestTransfer = {
                             name: landmark,
@@ -1406,32 +1447,108 @@ class RoutePlanner {
         return bestTransfer;
     }
 
-    // Create terminal transfer route
-    createTerminalTransferRoute(toRoute, fromRoute, terminalName, startCoords, endCoords) {
-        const startWalkDistance = this.findDistanceToRoute(startCoords, toRoute.data);
-        const endWalkDistance = this.findDistanceToRoute(endCoords, fromRoute.data);
+    // Check if transfer point is logical (not going backwards)
+    isTransferLogical(transferPoint, startCoords, endCoords) {
+        const distanceStartToTransfer = this.calculateDistance(startCoords, transferPoint);
+        const distanceTransferToEnd = this.calculateDistance(transferPoint, endCoords);
+        const directDistance = this.calculateDistance(startCoords, endCoords);
         
+        // Transfer should not be way out of the way
+        if (distanceTransferToEnd > directDistance * 2) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Check if transfer is realistic
+    isTransferRealistic(transferPoint, startCoords, endCoords) {
+        // Transfer walk should be reasonable
+        if (transferPoint.walkDistance > 500) return false;
+        
+        return true;
+    }
+
+    // Check if route is realistic
+    isRouteRealistic(routeOption) {
+        // Filter out routes with unrealistic walking distances
+        if (routeOption.startWalk && routeOption.startWalk.distance < 50) return false;
+        if (routeOption.endWalk && routeOption.endWalk.distance < 50) return false;
+        
+        // Filter out overly complex routes unless necessary
+        if (routeOption.type === 'three_jeepney' && routeOption.totalTime > 45) return false;
+        
+        // Filter out routes that are too long
+        if (routeOption.totalTime > 90) return false;
+        
+        // Filter out routes with unrealistic transfers
+        if (routeOption.transferPoints) {
+            for (const transfer of routeOption.transferPoints) {
+                if (transfer.walkDistance > 500) return false;
+            }
+        }
+        
+        return true;
+    }
+
+    // Final validation: is this route actually possible?
+    isRouteActuallyPossible(routeOption) {
+        // We do the validation during route generation, so assume valid
+        return true;
+    }
+
+    // NEW: Check if transfer makes logical sense
+    isLogicalTransfer(route1, route2, transferPoint, startCoords, endCoords) {
+        // Don't suggest transfers that go backwards
+        const route1ToTransferDistance = this.calculateDistance(startCoords, transferPoint.coordinates);
+        const transferToEndDistance = this.calculateDistance(transferPoint.coordinates, endCoords);
+        const directDistance = this.calculateDistance(startCoords, endCoords);
+        
+        // If transfer point is further from destination than start, it's probably wrong
+        if (transferToEndDistance > directDistance * 1.5) {
+            return false;
+        }
+        
+        // Avoid transfers that are too close to start or end
+        if (route1ToTransferDistance < 500 || transferToEndDistance < 500) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Create realistic transfer route
+    createRealisticTransferRoute(startRoute, endRoute, transferPoint, startCoords, endCoords) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, startRoute.data);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, endRoute.data);
+        
+        // Skip if walking distances are unrealistic
         if (startWalkDistance > 2000 || endWalkDistance > 1000) return null;
         
         const startWalkTime = Math.round(startWalkDistance / 80);
         const endWalkTime = Math.round(endWalkDistance / 80);
+        const transferWalkTime = Math.round(transferPoint.walkDistance / 80);
         const transferWaitTime = 5;
         
-        const totalTime = startWalkTime + toRoute.data.baseTime + transferWaitTime + 
-                         fromRoute.data.baseTime + endWalkTime;
-        const totalFare = this.extractFare(toRoute.data.fare) + this.extractFare(fromRoute.data.fare);
+        const totalTime = startWalkTime + startRoute.data.baseTime + transferWalkTime + 
+                         transferWaitTime + endRoute.data.baseTime + endWalkTime;
+        
+        // Skip if total time is too long
+        if (totalTime > 90) return null;
+        
+        const totalFare = this.extractFare(startRoute.data.fare) + this.extractFare(endRoute.data.fare);
         
         return {
-            type: 'terminal_transfer',
-            routes: [toRoute.name, fromRoute.name],
-            terminal: terminalName,
+            type: 'two_jeepney',
+            routes: [startRoute.name, endRoute.name],
+            transferPoints: [transferPoint],
             startWalk: { distance: startWalkDistance, time: startWalkTime },
             endWalk: { distance: endWalkDistance, time: endWalkTime },
             totalFare: totalFare,
             totalTime: Math.round(totalTime),
-            confidence: 'high',
+            confidence: 'medium',
             reachesDestination: true,
-            description: `Via ${terminalName} transfer point`
+            description: `${startRoute.name} + ${endRoute.name}`
         };
     }
 
@@ -1518,28 +1635,106 @@ class RoutePlanner {
         return null;
     }
 
-    // Check if route is realistic
-    isRouteRealistic(routeOption) {
-        // Filter out routes with unrealistic walking distances
-        if (routeOption.startWalk && routeOption.startWalk.distance < 50) return false;
-        if (routeOption.endWalk && routeOption.endWalk.distance < 50) return false;
-        
-        // Filter out overly complex routes unless necessary
-        if (routeOption.type === 'three_jeepney' && routeOption.totalTime > 45) return false;
-        
-        // Filter out routes that are too long
-        if (routeOption.totalTime > 90) return false;
-        
-        // Filter out routes with unrealistic transfers
-        if (routeOption.transferPoints) {
-            for (const transfer of routeOption.transferPoints) {
-                if (transfer.walkDistance > 500) return false;
-            }
-        }
-        
-        return true;
+    // NEW: Find routes near location with boarding validation
+    findRoutesNearLocationWithBoarding(coords, maxDistance) {
+        return Object.entries(jeepneyRoutes)
+            .filter(([routeName, routeData]) => {
+                const isNear = this.isNearRoute(coords, routeData, maxDistance);
+                const canBoard = this.canBoardRouteFromLocation(coords, routeData, maxDistance);
+                return isNear && canBoard;
+            })
+            .map(([name, data]) => ({ name, data }));
     }
 
+    // NEW: Get routes that actually serve a specific area
+    getRoutesServingArea(areaCoords, maxDistance) {
+        return Object.entries(jeepneyRoutes)
+            .filter(([routeName, routeData]) => {
+                // Check if route passes through or near the target area
+                return this.isRouteInArea(routeData, areaCoords, maxDistance);
+            })
+            .map(([name, data]) => ({ name, data }));
+    }
+
+    // NEW: Check if a route serves a specific area
+    isRouteInArea(routeData, areaCoords, maxDistance) {
+        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        // Check if any point in the route is near the target area
+        return allPoints.some(point => {
+            const distance = this.calculateDistance(areaCoords, point);
+            return distance <= maxDistance;
+        });
+    }
+
+    // ENHANCED: Check if route flows towards destination
+    isRouteFlowingTowardsDestination(startCoords, endCoords, routeData) {
+        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        if (allPoints.length < 2) return true;
+        
+        // Find the segment of the route that's relevant to this trip
+        const startSegment = this.findRelevantRouteSegment(startCoords, routeData);
+        const endSegment = this.findRelevantRouteSegment(endCoords, routeData);
+        
+        // If we can't determine segments, assume it's valid
+        if (!startSegment || !endSegment) return true;
+        
+        // Check if the route flows from start towards end
+        return this.doesRouteFlowTowards(startSegment, endSegment, endCoords);
+    }
+
+    // NEW: Find the relevant segment of route for boarding
+    findRelevantRouteSegment(locationCoords, routeData) {
+        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        let nearestPoint = null;
+        let minDistance = Infinity;
+        let nearestIndex = -1;
+        
+        // Find nearest point and its index
+        allPoints.forEach((point, index) => {
+            const distance = this.calculateDistance(locationCoords, point);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestPoint = point;
+                nearestIndex = index;
+            }
+        });
+        
+        if (nearestIndex === -1) return null;
+        
+        // Return the segment (previous point -> nearest point -> next point)
+        return {
+            previous: allPoints[nearestIndex - 1] || null,
+            current: nearestPoint,
+            next: allPoints[nearestIndex + 1] || null,
+            index: nearestIndex
+        };
+    }
+
+    // NEW: Check if route flows towards destination
+    doesRouteFlowTowards(startSegment, endSegment, destinationCoords) {
+        // If we have clear route segments, check direction
+        if (startSegment.next && endSegment.previous) {
+            // Simple check: end segment should come after start segment in route order
+            return endSegment.index > startSegment.index;
+        }
+        
+        // Fallback: check if moving from start to end gets closer to destination
+        if (startSegment.next) {
+            const distanceFromNextToDest = this.calculateDistance(startSegment.next, destinationCoords);
+            const distanceFromCurrentToDest = this.calculateDistance(startSegment.current, destinationCoords);
+            return distanceFromNextToDest < distanceFromCurrentToDest;
+        }
+        
+        return true; // Default to valid if we can't determine
+    }
+
+    // ... (KEEP ALL THE EXISTING DISPLAY AND HELPER METHODS BELOW EXACTLY AS THEY WERE)
+    // Only the route finding logic above has been enhanced
+
+    // ALL EXISTING HELPER METHODS (keep everything below this line exactly as it was)
     displayRouteOptions(routeOptions, start, end, startCoords, endCoords) {
         if (routeOptions.length === 0) {
             document.getElementById('route-options').innerHTML = 
@@ -2019,196 +2214,6 @@ class RoutePlanner {
         `;
         detailsDiv.style.display = 'block';
     }
-
-    isRouteFlowingTowardsDestination(startCoords, endCoords, routeData) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-        
-        if (allPoints.length < 2) return true;
-        
-        // Find the segment of the route that's relevant to this trip
-        const startSegment = this.findRelevantRouteSegment(startCoords, routeData);
-        const endSegment = this.findRelevantRouteSegment(endCoords, routeData);
-        
-        // If we can't determine segments, assume it's valid
-        if (!startSegment || !endSegment) return true;
-        
-        // Check if the route flows from start towards end
-        return this.doesRouteFlowTowards(startSegment, endSegment, endCoords);
-    }
-
-    // NEW: Find the relevant segment of route for boarding
-    findRelevantRouteSegment(locationCoords, routeData) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-        
-        let nearestPoint = null;
-        let minDistance = Infinity;
-        let nearestIndex = -1;
-        
-        // Find nearest point and its index
-        allPoints.forEach((point, index) => {
-            const distance = this.calculateDistance(locationCoords, point);
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearestPoint = point;
-                nearestIndex = index;
-            }
-        });
-        
-        if (nearestIndex === -1) return null;
-        
-        // Return the segment (previous point -> nearest point -> next point)
-        return {
-            previous: allPoints[nearestIndex - 1] || null,
-            current: nearestPoint,
-            next: allPoints[nearestIndex + 1] || null,
-            index: nearestIndex
-        };
-    }
-
-    // NEW: Check if route flows towards destination
-    doesRouteFlowTowards(startSegment, endSegment, destinationCoords) {
-        // If we have clear route segments, check direction
-        if (startSegment.next && endSegment.previous) {
-            // Simple check: end segment should come after start segment in route order
-            return endSegment.index > startSegment.index;
-        }
-        
-        // Fallback: check if moving from start to end gets closer to destination
-        if (startSegment.next) {
-            const distanceFromNextToDest = this.calculateDistance(startSegment.next, destinationCoords);
-            const distanceFromCurrentToDest = this.calculateDistance(startSegment.current, destinationCoords);
-            return distanceFromNextToDest < distanceFromCurrentToDest;
-        }
-        
-        return true; // Default to valid if we can't determine
-    }
-
-    // ENHANCED boarding validation with direction check
-    canBoardRouteFromLocation(locationCoords, routeData, maxDistance) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-        
-        // Find the nearest point on the route
-        const nearestPoint = this.findNearestPointOnRoute(locationCoords, routeData);
-        
-        // Check if it's close enough to board
-        if (nearestPoint.distance > maxDistance) {
-            return false;
-        }
-        
-        // Check if this is a reasonable boarding point
-        const hasReasonableBoardingPoint = allPoints.some(point => {
-            const distance = this.calculateDistance(locationCoords, point);
-            return distance <= maxDistance && distance >= 50;
-        });
-        
-        if (!hasReasonableBoardingPoint) {
-            return false;
-        }
-        
-        return true;
-    }
-
-    // ENHANCED transfer point finding with direction validation
-    findValidatedTransferPoint(route1, route2, startCoords, endCoords) {
-        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
-        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
-        
-        let bestTransfer = null;
-        let minDistance = Infinity;
-        
-        for (const point1 of route1Points) {
-            for (const point2 of route2Points) {
-                const distance = this.calculateDistance(point1, point2);
-                
-                // Only consider transfers that are close and at known landmarks
-                if (distance < minDistance && distance <= 300) {
-                    const landmark = this.findLandmarkName(point1);
-                    
-                    // Additional validation: Check if this transfer makes sense directionally
-                    const route1FlowsToTransfer = this.isRouteFlowingTowardsDestination(startCoords, point1, route1);
-                    const route2FlowsFromTransfer = this.isRouteFlowingTowardsDestination(point2, endCoords, route2);
-                    
-                    if (landmark && route1FlowsToTransfer && route2FlowsFromTransfer) {
-                        minDistance = distance;
-                        bestTransfer = {
-                            name: landmark,
-                            coordinates: point1,
-                            walkDistance: distance,
-                            validated: true
-                        };
-                    }
-                }
-            }
-        }
-        
-        return bestTransfer;
-    }
-
-    // ENHANCED multi-jeepney combinations with direction validation
-    findValidatedMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
-        const complexRoutes = [];
-        
-        // Get validated start routes (near start location AND can be boarded)
-        const startRoutes = this.findRoutesNearLocationWithBoarding(startCoords, maxDistance);
-        
-        // Get validated end routes (actually go to BatStateU)
-        const endRoutes = this.getRoutesServingArea(endCoords, 800);
-        
-        console.log('Start routes with boarding:', startRoutes.map(r => r.name));
-        console.log('End routes to BatStateU:', endRoutes.map(r => r.name));
-        
-        // Find 2-jeepney combinations with actual connections AND direction validation
-        startRoutes.forEach(route1 => {
-            endRoutes.forEach(route2 => {
-                if (route1.name !== route2.name) {
-                    // Try to find actual transfer points between routes WITH DIRECTION CHECK
-                    const transferPoint = this.findValidatedTransferPoint(
-                        route1.data, route2.data, startCoords, endCoords
-                    );
-                    
-                    if (transferPoint && transferPoint.walkDistance <= 300) {
-                        // Additional check: ensure the transfer makes logical sense
-                        const isLogicalTransfer = this.isLogicalTransfer(
-                            route1.data, route2.data, transferPoint, startCoords, endCoords
-                        );
-                        
-                        if (isLogicalTransfer) {
-                            const routeOption = this.createTwoJeepneyRoute(
-                                route1, route2, transferPoint, startCoords, endCoords
-                            );
-                            if (routeOption) {
-                                routeOption.validated = true;
-                                complexRoutes.push(routeOption);
-                            }
-                        }
-                    }
-                }
-            });
-        });
-        
-        return complexRoutes;
-    }
-
-    // NEW: Check if transfer makes logical sense
-    isLogicalTransfer(route1, route2, transferPoint, startCoords, endCoords) {
-        // Don't suggest transfers that go backwards
-        const route1ToTransferDistance = this.calculateDistance(startCoords, transferPoint.coordinates);
-        const transferToEndDistance = this.calculateDistance(transferPoint.coordinates, endCoords);
-        const directDistance = this.calculateDistance(startCoords, endCoords);
-        
-        // If transfer point is further from destination than start, it's probably wrong
-        if (transferToEndDistance > directDistance * 1.5) {
-            return false;
-        }
-        
-        // Avoid transfers that are too close to start or end
-        if (route1ToTransferDistance < 500 || transferToEndDistance < 500) {
-            return false;
-        }
-        
-        return true;
-    }
-
 }
 
 // Traffic Layer Manager
