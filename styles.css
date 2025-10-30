@@ -719,3 +719,133 @@ body {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
 }
+
+/* Enhanced Boarding Validation Styles */
+.boarding-info {
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.boarding-info.primary {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border-left: 3px solid #4caf50;
+}
+
+.boarding-info.secondary {
+    background: #e3f2fd;
+    color: #1565c0;
+    border-left: 3px solid #2196f3;
+}
+
+.boarding-info.walking {
+    background: #fff3e0;
+    color: #ef6c00;
+    border-left: 3px solid #ff9800;
+}
+
+.boarding-info.invalid {
+    background: #ffebee;
+    color: #c62828;
+    border-left: 3px solid #f44336;
+}
+
+.boarding-info.unknown {
+    background: #f5f5f5;
+    color: #616161;
+    border-left: 3px solid #9e9e9e;
+}
+
+.boarding-details {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.boarding-details.primary {
+    background: #e8f5e8;
+    border: 1px solid #c8e6c9;
+}
+
+.boarding-details.secondary {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+}
+
+.boarding-details.walking {
+    background: #fff3e0;
+    border: 1px solid #ffe0b2;
+}
+
+.boarding-details.invalid {
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+}
+
+.boarding-warning-note {
+    background: #fff3cd;
+    color: #856404;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin: 5px 0;
+    border-left: 3px solid #ffc107;
+}
+
+.boarding-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin: 5px 0;
+    display: inline-block;
+}
+
+.boarding-badge.boarding-valid {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.boarding-badge.boarding-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.boarding-badge.boarding-invalid {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.validated-route {
+    border-left: 4px solid #4caf50 !important;
+}
+
+.nearest-route-item.boarding-warning {
+    border: 2px solid #ffc107;
+    background: #fffdf6;
+}
+
+.no-routes-found {
+    background: #fff3f3;
+    border: 2px solid #ffcdd2;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.no-routes-found ul {
+    text-align: left;
+    margin: 15px 0;
+}
+
+.no-routes-found li {
+    margin: 8px 0;
+    color: #666;
+}
