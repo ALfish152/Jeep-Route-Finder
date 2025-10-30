@@ -480,19 +480,16 @@ class BatangasJeepneySystem {
             };
         } else if (distance <= 1000) {
             return {
-                type: 'walk_or_tricycle',
-                message: `🚶‍♂️ Walk ${Math.round(distance)}m or 🛺 Take tricycle`,
+                type: 'walk',
+                message: `🚶‍♂️ Walk ${Math.round(distance)}m to jeepney route`,
                 time: Math.round(distance / 80),
-                tricycleTime: Math.round(distance / 200),
-                tricycleFare: distance <= 500 ? '₱10-15' : '₱15-25',
                 color: '#ff9800'
             };
         } else {
             return {
-                type: 'tricycle',
-                message: `🛺 Take tricycle (${Math.round(distance)}m away)`,
-                time: Math.round(distance / 200),
-                fare: '₱25-40',
+                type: 'walk',
+                message: `🚶‍♂️ Walk ${Math.round(distance)}m to jeepney route`,
+                time: Math.round(distance / 80),
                 color: '#f44336'
             };
         }
@@ -517,9 +514,7 @@ class BatangasJeepneySystem {
                     </div>
                     <div class="recommendation" style="background: ${rec.color}20; border-left: 4px solid ${rec.color}; padding: 8px; margin: 5px 0; border-radius: 4px;">
                         <strong>${rec.message}</strong>
-                        ${rec.type === 'walk' ? `<br>🕐 ${rec.time} min walking` : ''}
-                        ${rec.type === 'walk_or_tricycle' ? `<br>🕐 ${rec.time} min walking or ${rec.tricycleTime} min by tricycle (${rec.tricycleFare})` : ''}
-                        ${rec.type === 'tricycle' ? `<br>🕐 ${rec.time} min • 💰 ${rec.fare}` : ''}
+                        <br>🕐 ${rec.time} min walking
                     </div>
                     <div class="route-info">
                 ${route.routeData.description}<br>
@@ -588,7 +583,7 @@ class BatangasJeepneySystem {
                 <p><strong>Distance:</strong> ${Math.round(distance)} meters</p>
                 <p><strong>Walking Time:</strong> ${walkingTime} minutes</p>
                 <p><strong>Pace:</strong> Normal walking speed (5km/h)</p>
-                <p><strong>Tip:</strong> Look for the nearest tricycle if you have luggage or it's raining</p>
+                <p><strong>Tip:</strong> Look for alternative transportation if you have luggage or it's raining</p>
             </div>
             <div style="margin-top: 15px;">
                 <button class="control-btn" style="background: #dc3545;" onclick="app.clearWalkingRoute()">
@@ -1051,8 +1046,6 @@ class RouteManager {
     }
 }
 
-
-// COMPLETE ENHANCED RoutePlanner Class with Realistic Fares
 class RoutePlanner {
     async planRoute() {
         const start = document.getElementById('startLocation').value;
@@ -1089,14 +1082,10 @@ class RoutePlanner {
             this.currentStartCoords = startCoords;
             this.currentEndCoords = endCoords;
             
-            // Find comprehensive route combinations with realistic fares
+            // Find comprehensive route combinations
             const routeOptions = this.findCompleteRouteCombinations(startCoords, endCoords);
             
-            if (routeOptions.length === 0) {
-                this.showRealisticTricycleOption(startCoords, endCoords);
-            } else {
-                this.displayRouteOptions(routeOptions, start, end, startCoords, endCoords);
-            }
+            this.displayRouteOptions(routeOptions, start, end, startCoords, endCoords);
             
         } catch (error) {
             console.error('Route planning error:', error);
@@ -1108,7 +1097,7 @@ class RoutePlanner {
         }
     }
 
-    // Find comprehensive route combinations with realistic fares
+    // Find comprehensive route combinations
     findCompleteRouteCombinations(startCoords, endCoords, maxDistance = 3000) {
         const allOptions = [];
         
@@ -1126,11 +1115,7 @@ class RoutePlanner {
         const multiJeepneyRoutes = this.findComplexJeepneyCombinations(startCoords, endCoords, maxDistance);
         allOptions.push(...multiJeepneyRoutes);
         
-        // 4. Tricycle + Multiple Jeepneys
-        const tricycleMultiRoutes = this.findTricycleMultiJeepneyRoutes(startCoords, endCoords, maxDistance);
-        allOptions.push(...tricycleMultiRoutes);
-        
-        // 5. Walking + Multiple Jeepneys
+        // 4. Walking + Multiple Jeepneys
         const walkingMultiRoutes = this.findWalkingMultiJeepneyRoutes(startCoords, endCoords, maxDistance);
         allOptions.push(...walkingMultiRoutes);
         
@@ -1285,52 +1270,6 @@ class RoutePlanner {
         return intermediateOptions.slice(0, 2); // Limit to 2 best options
     }
 
-    // Find tricycle + multiple jeepney routes
-    findTricycleMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
-        const tricycleMultiRoutes = [];
-        
-        // Find nearest jeepney route to start
-        const nearestStartRoute = this.findNearestRoute(startCoords, 2000);
-        if (!nearestStartRoute) return tricycleMultiRoutes;
-        
-        // Find routes from that point to BatStateU
-        const startPoint = this.findNearestPointOnRoute(startCoords, nearestStartRoute.data).point;
-        const routesToBatStateU = this.findRoutesBetweenPoints(startPoint, endCoords, maxDistance);
-        
-        routesToBatStateU.forEach(endRoute => {
-            if (endRoute.name !== nearestStartRoute.name) {
-                const tricycleDistance = nearestStartRoute.distance;
-                
-                // Only use tricycle for reasonable distances (300m - 2km)
-                if (tricycleDistance >= 300 && tricycleDistance <= 2000) {
-                    const tricycleTime = Math.round(tricycleDistance / 200);
-                    const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
-                    const jeepneyTime = endRoute.data.baseTime;
-                    const totalTime = tricycleTime + jeepneyTime + 5;
-                    const totalFare = tricycleFare + this.extractFare(endRoute.data.fare);
-                    
-                    tricycleMultiRoutes.push({
-                        type: 'tricycle_jeepney',
-                        routes: [endRoute.name],
-                        tricycle: {
-                            distance: tricycleDistance,
-                            time: tricycleTime,
-                            fare: tricycleFare,
-                            toPoint: startPoint
-                        },
-                        totalFare: totalFare,
-                        totalTime: Math.round(totalTime),
-                        confidence: 'high',
-                        reachesDestination: true,
-                        description: `Tricycle to ${endRoute.name} then to BatStateU`
-                    });
-                }
-            }
-        });
-        
-        return tricycleMultiRoutes;
-    }
-
     // Find walking + multiple jeepney routes
     findWalkingMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
         const walkingMultiRoutes = [];
@@ -1365,22 +1304,6 @@ class RoutePlanner {
         });
         
         return walkingMultiRoutes;
-    }
-
-    // Calculate REALISTIC tricycle fares for Batangas
-    calculateRealisticTricycleFare(distance) {
-        // Realistic tricycle fares for Batangas City based on actual prices
-        if (distance <= 500) return 15;    // Short distance: ₱15
-        if (distance <= 1000) return 20;   // Medium distance: ₱20
-        if (distance <= 1500) return 25;   // Medium-long: ₱25
-        if (distance <= 2000) return 30;   // Long distance: ₱30
-        if (distance <= 2500) return 35;   // Very long: ₱35
-        if (distance <= 3000) return 40;   // Maximum reasonable: ₱40
-        if (distance <= 4000) return 50;   // 4km: ₱50
-        if (distance <= 5000) return 60;   // 5km: ₱60
-        if (distance <= 6000) return 70;   // 6km: ₱70
-        if (distance <= 7000) return 80;   // 7km: ₱80
-        return 90 + Math.floor((distance - 7000) / 1000) * 10; // ₱90+ for very long distances
     }
 
     // Create terminal transfer route
@@ -1517,101 +1440,10 @@ class RoutePlanner {
         return true;
     }
 
-    showRealisticTricycleOption(startCoords, endCoords) {
-        if (!startCoords || !endCoords) {
-            console.error('Missing coordinates for tricycle option');
-            document.getElementById('route-options').innerHTML = 
-                `<p style="color: #dc3545; text-align: center;">Error: Could not calculate tricycle route. Please try again.</p>`;
-            return;
-        }
-
-        const distance = this.calculateDistance(startCoords, endCoords);
-        const tricycleTime = Math.round(distance / 200);
-        const tricycleFare = this.calculateRealisticTricycleFare(distance);
-        
-        // Also show jeepney + tricycle combinations as alternatives
-        const alternativeRoutes = this.findJeepneyTricycleAlternatives(startCoords, endCoords);
-        
-        let alternativesHtml = '';
-        if (alternativeRoutes.length > 0) {
-            alternativesHtml = `
-                <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px;">
-                    <strong>💰 Cheaper Jeepney Alternatives:</strong>
-                    ${alternativeRoutes.map(route => `
-                        <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 6px;">
-                            <strong>${route.description}</strong><br>
-                            🕐 ${route.totalTime} min • 💰 ₱${route.totalFare}
-                            <button class="control-btn success" style="margin-top: 5px;" 
-                                onclick="routePlanner.showAlternativeRoute('${route.routes[0]}', ${route.tricycle?.distance || 0})">
-                                Show Route
-                            </button>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        const html = `
-            <div class="tricycle-only-option">
-                <h5>🛺 Direct Tricycle</h5>
-                <div class="route-info">
-                    <p><strong>Most direct option (but expensive):</strong></p>
-                    <div class="route-leg">
-                        <strong>🛺 Direct to BatStateU-Alangilan</strong><br>
-                        📏 ${Math.round(distance)}m • 🕐 ${tricycleTime} min • 💰 ₱${tricycleFare}
-                    </div>
-                    <p><small>💡 <strong>Tip:</strong> Jeepney combinations below are usually cheaper for longer distances</small></p>
-                </div>
-                ${alternativesHtml}
-            </div>
-        `;
-        
-        document.getElementById('route-options').innerHTML = html;
-    }
-
-    // Find jeepney + tricycle alternatives
-    findJeepneyTricycleAlternatives(startCoords, endCoords) {
-        const alternatives = [];
-        const maxDistance = 3000;
-        
-        // Find routes that get you closer to BatStateU
-        const routesNearBatStateU = this.findRoutesNearLocation(endCoords, 1500);
-        
-        routesNearBatStateU.forEach(route => {
-            const nearestPoint = this.findNearestPointOnRoute(startCoords, route.data);
-            const jeepneyDistance = this.findDistanceToRoute(startCoords, route.data);
-            const tricycleDistance = this.findDistanceToRoute(endCoords, route.data);
-            
-            // Only consider if jeepney ride is substantial and tricycle is short
-            if (jeepneyDistance <= 1000 && tricycleDistance <= 1000 && tricycleDistance >= 300) {
-                const jeepneyTime = route.data.baseTime * 0.7;
-                const tricycleTime = Math.round(tricycleDistance / 200);
-                const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
-                const totalTime = jeepneyTime + tricycleTime + 5;
-                const totalFare = this.extractFare(route.data.fare) + tricycleFare;
-                
-                alternatives.push({
-                    type: 'jeepney_tricycle',
-                    routes: [route.name],
-                    tricycle: {
-                        distance: tricycleDistance,
-                        time: tricycleTime,
-                        fare: tricycleFare
-                    },
-                    totalFare: totalFare,
-                    totalTime: Math.round(totalTime),
-                    description: `${route.name} + Tricycle (${Math.round(tricycleDistance)}m)`
-                });
-            }
-        });
-        
-        return alternatives.sort((a, b) => a.totalFare - b.totalFare).slice(0, 3);
-    }
-
-    // Display route options - FIXED VERSION
     displayRouteOptions(routeOptions, start, end, startCoords, endCoords) {
         if (routeOptions.length === 0) {
-            this.showRealisticTricycleOption(startCoords, endCoords);
+            document.getElementById('route-options').innerHTML = 
+                `<p style="color: #dc3545; text-align: center;">No jeepney routes found. Please try a different starting location or check if you're within Batangas City.</p>`;
             return;
         }
         
@@ -1620,18 +1452,6 @@ class RoutePlanner {
         routeOptions.forEach((option, index) => {
             html += this.formatComprehensiveOption(option, index);
         });
-        
-        // Add direct tricycle option for comparison
-        const directDistance = this.calculateDistance(startCoords, endCoords);
-        const directTricycleFare = this.calculateRealisticTricycleFare(directDistance);
-        
-        html += `
-            <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
-                <strong>🛺 Direct Tricycle Comparison:</strong>
-                <p>📏 ${Math.round(directDistance)}m • 🕐 ${Math.round(directDistance/200)} min • 💰 ₱${directTricycleFare}</p>
-                <small>For reference - jeepney combinations above are usually cheaper for longer distances</small>
-            </div>
-        `;
         
         document.getElementById('route-options').innerHTML = html;
     }
@@ -1644,8 +1464,6 @@ class RoutePlanner {
             routeHtml = this.formatDirectBatStateUOption(option, index);
         } else if (option.type === 'terminal_transfer') {
             routeHtml = this.formatTerminalTransferOption(option, index);
-        } else if (option.type === 'tricycle_jeepney') {
-            routeHtml = this.formatTricycleJeepneyOption(option, index);
         } else if (option.type === 'walking_jeepney') {
             routeHtml = this.formatWalkingJeepneyOption(option, index);
         } else if (option.type === 'two_jeepney') {
@@ -1697,35 +1515,6 @@ class RoutePlanner {
                         🕐 ${option.totalTime} min • 💰 ₱${option.totalFare}
                     </div>
                     <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showMultiJeepneyRoute(['${route1}', '${route2}'])">
-                        Show Route
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    // Format tricycle + jeepney option
-    formatTricycleJeepneyOption(option, index) {
-        const routeName = option.routes[0];
-        const routeData = jeepneyRoutes[routeName];
-        
-        return `
-            <div class="tricycle-option">
-                <strong>${index + 1}. Tricycle + ${routeName}</strong>
-                <div class="transfer-route">
-                    <div class="route-leg">
-                        <strong>🛺 Tricycle to Jeepney</strong><br>
-                        <small>${Math.round(option.tricycle.distance)}m • 🕐 ${option.tricycle.time} min • 💰 ₱${option.tricycle.fare}</small>
-                    </div>
-                    <div class="route-leg">
-                        <strong>🚍 ${routeName}</strong><br>
-                        <small>${routeData.description}</small><br>
-                        🕐 ${Math.round(option.totalTime - option.tricycle.time)} min • 💰 ${app.formatFare(routeData.fare)}
-                    </div>
-                    <div class="route-info">
-                        🕐 Total: ${option.totalTime} min • 💰 Total: ₱${option.totalFare}
-                    </div>
-                    <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showTricycleJeepneyRoute('${routeName}', ${option.tricycle.distance})">
                         Show Route
                     </button>
                 </div>
@@ -1829,46 +1618,6 @@ class RoutePlanner {
                 </div>
             </div>
         `;
-    }
-
-    // Show alternative route
-    showAlternativeRoute(routeName, tricycleDistance) {
-        routeManager.clearAllRoutesSilently();
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                routeManager.createSnappedRoute(routeName, routeData);
-            }
-            this.showAlternativeRouteDetails(routeName, tricycleDistance);
-        } catch (error) {
-            console.error('Error showing alternative route:', error);
-            alert('Error displaying route. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-        }
-    }
-
-    // Show alternative route details
-    showAlternativeRouteDetails(routeName, tricycleDistance) {
-        const routeData = jeepneyRoutes[routeName];
-        const tricycleTime = Math.round(tricycleDistance / 200);
-        const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
-        const totalFare = this.extractFare(routeData.fare) + tricycleFare;
-        const totalTime = routeData.baseTime + tricycleTime + 5;
-        
-        const detailsDiv = document.getElementById('route-details');
-        detailsDiv.innerHTML = `
-            <h4>🚍 + 🛺 Alternative Route</h4>
-            <div class="route-info">
-                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
-                <p><strong>Final Tricycle:</strong> ${Math.round(tricycleDistance)}m • ${tricycleTime} min • ₱${tricycleFare}</p>
-                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
-                <p><small>💡 This combination can be cheaper than direct tricycle for longer distances</small></p>
-            </div>
-        `;
-        detailsDiv.style.display = 'block';
     }
 
     // ALL HELPER METHODS
@@ -2062,24 +1811,6 @@ class RoutePlanner {
 
     // ROUTE DISPLAY METHODS
 
-    async showTricycleJeepneyRoute(routeName, tricycleDistance) {
-        routeManager.clearAllRoutesSilently();
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                await routeManager.createSnappedRoute(routeName, routeData);
-            }
-            this.showTricycleRouteDetails(routeName, tricycleDistance);
-        } catch (error) {
-            console.error('Error showing tricycle route:', error);
-            alert('Error displaying route. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-        }
-    }
-
     async showWalkingJeepneyRoute(routeName, walkDistance) {
         routeManager.clearAllRoutesSilently();
         document.getElementById('loading').style.display = 'block';
@@ -2119,25 +1850,6 @@ class RoutePlanner {
     }
 
     // DETAILS DISPLAY METHODS
-
-    showTricycleRouteDetails(routeName, tricycleDistance) {
-        const routeData = jeepneyRoutes[routeName];
-        const tricycleTime = Math.round(tricycleDistance / 200);
-        const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
-        const totalFare = tricycleFare + this.extractFare(routeData.fare);
-        const totalTime = tricycleTime + routeData.baseTime + 5;
-        
-        const detailsDiv = document.getElementById('route-details');
-        detailsDiv.innerHTML = `
-            <h4>🛺 + 🚍 Route Details</h4>
-            <div class="route-info">
-                <p><strong>Tricycle:</strong> ${Math.round(tricycleDistance)}m • ${tricycleTime} min • ₱${tricycleFare}</p>
-                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
-                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
-            </div>
-        `;
-        detailsDiv.style.display = 'block';
-    }
 
     showWalkingJeepneyDetails(routeName, walkDistance) {
         const routeData = jeepneyRoutes[routeName];
