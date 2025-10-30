@@ -1,4 +1,4 @@
-// Main Application
+// Enhanced Batangas Jeepney Route System
 class BatangasJeepneySystem {
     constructor() {
         this.map = null;
@@ -11,6 +11,9 @@ class BatangasJeepneySystem {
         this.accuracyCircle = null;
         this.searchRadiusCircle = null;
         this.nearestRoutes = [];
+        this.currentWalkingRoute = null;
+        this.walkingStartMarker = null;
+        this.walkingEndMarker = null;
         
         this.init();
     }
@@ -24,7 +27,6 @@ class BatangasJeepneySystem {
     }
 
     initializeMap() {
-        // Ensure map container has proper dimensions
         const mapElement = document.getElementById('map');
         if (mapElement) {
             mapElement.style.height = '100vh';
@@ -83,21 +85,17 @@ class BatangasJeepneySystem {
             }
         });
 
-        // Student / PWD discount toggle: refresh displayed fares when changed
+        // Student / PWD discount toggle
         const discountToggle = document.getElementById('discountToggle');
         if (discountToggle) {
             discountToggle.addEventListener('change', () => {
-                // Refresh routes list display
                 this.populateRoutesList();
-
-                // Refresh currently shown route details (if any)
                 try {
                     if (routeManager.activeRoutes.length > 0) {
                         const active = routeManager.activeRoutes[0];
                         const data = routeManager.routeLayers[active]?.data || jeepneyRoutes[active];
                         if (data) {
                             const hour = parseInt(document.getElementById('timeSlider').value);
-                            // pass an empty routeInfo so ETA logic falls back to baseTime
                             routeManager.updateRouteDetails(active, data, {}, hour);
                         }
                     }
@@ -115,13 +113,11 @@ class BatangasJeepneySystem {
         this.updateStatistics();
     }
 
-    // Format fare string and apply Student/PWD discount if enabled
     formatFare(fareStr) {
         const discountEnabled = document.getElementById('discountToggle')?.checked;
         const discount = discountEnabled ? 2 : 0;
         if (!fareStr || discount === 0) return fareStr;
 
-        // Extract numbers and apply discount
         const nums = fareStr.match(/(\d+)/g);
         if (!nums) return fareStr;
 
@@ -130,7 +126,6 @@ class BatangasJeepneySystem {
         if (adjusted.length === 1) {
             return `₱${adjusted[0]}`;
         }
-        // If range
         return `₱${adjusted[0]}-₱${adjusted[1]}`.replace(/₱(\d+)-₱(\d+)/, '₱$1-$2');
     }
 
@@ -182,7 +177,6 @@ class BatangasJeepneySystem {
         const displayHour = hour % 12 || 12;
         document.getElementById('timeDisplay').textContent = `${displayHour}:00 ${period}`;
         
-        // Recalculate ETA for active routes
         if (this.activeRoutes.length > 0) {
             this.activeRoutes.forEach(routeName => {
                 const routeData = jeepneyRoutes[routeName];
@@ -275,7 +269,7 @@ class BatangasJeepneySystem {
         document.getElementById('feeder-routes').textContent = feederRoutes;
     }
 
-    // IMPROVED: Use My Location with dynamic radius and route finding
+    // Improved location handling
     async useMyLocation(field, event) {
         console.log('useMyLocation called with field:', field);
         
@@ -305,7 +299,6 @@ class BatangasJeepneySystem {
             
             console.log('Location obtained:', { lat, lng, accuracy: accuracy + 'm' });
             
-            // Store user location
             this.userLocation = [lat, lng];
             
             // Clear existing markers
@@ -319,7 +312,7 @@ class BatangasJeepneySystem {
                 this.map.removeLayer(this.searchRadiusCircle);
             }
             
-            // Add accuracy circle (limited to 500m max for better UX)
+            // Add accuracy circle
             const displayAccuracy = Math.min(accuracy, 500);
             this.accuracyCircle = L.circle([lat, lng], {
                 radius: displayAccuracy,
@@ -329,7 +322,7 @@ class BatangasJeepneySystem {
                 weight: 2
             }).addTo(this.map);
             
-            // Add location marker using your existing CSS
+            // Add location marker
             this.currentLocationMarker = L.marker([lat, lng], {
                 icon: L.divIcon({
                     className: 'current-location-marker',
@@ -353,13 +346,14 @@ class BatangasJeepneySystem {
             const inputField = field === 'start' ? 'startLocation' : 'endLocation';
             document.getElementById(inputField).value = `My Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
             
-            // Show accuracy feedback
             if (accuracy > 500) {
                 alert('📍 Location found (Low accuracy). For better results, enable GPS and go outside.');
             }
             
-            // NEW: Find nearest jeepney routes with dynamic radius
-            await this.findNearestJeepneyRoutes([lat, lng]);
+            // Find nearest jeepney routes
+            if (field === 'start') {
+                await this.findNearestJeepneyRoutes([lat, lng]);
+            }
 
         } catch (error) {
             console.error('Location error:', error);
@@ -371,48 +365,42 @@ class BatangasJeepneySystem {
             }
         }
     }
-   // use for start location with route finding
-    async useMyLocationWithRoutes(field, event) {
-    await this.useMyLocation(field, event);
-    // Route finding is already built into your original function
-}
-//use for destination without route finding
-async useMyLocationNoRoutes(field, event) {
-    // Temporarily disable route finding
-    const originalFindNearestJeepneyRoutes = this.findNearestJeepneyRoutes;
-    this.findNearestJeepneyRoutes = async () => {
-        // Do nothing - skip route finding
-        console.log('Skipping route finding for simple location');
-    };
-    
-    try {
-        await this.useMyLocation(field, event);
-    } finally {
-        // Restore the original function
-        this.findNearestJeepneyRoutes = originalFindNearestJeepneyRoutes;
-    }
-}
 
-    // NEW: Find nearest jeepney routes with dynamic radius expansion
+    // Use for start location with route finding
+    async useMyLocationWithRoutes(field, event) {
+        await this.useMyLocation(field, event);
+    }
+
+    // Use for destination without route finding
+    async useMyLocationNoRoutes(field, event) {
+        const originalFindNearestJeepneyRoutes = this.findNearestJeepneyRoutes;
+        this.findNearestJeepneyRoutes = async () => {
+            console.log('Skipping route finding for simple location');
+        };
+        
+        try {
+            await this.useMyLocation(field, event);
+        } finally {
+            this.findNearestJeepneyRoutes = originalFindNearestJeepneyRoutes;
+        }
+    }
+
+    // Find nearest jeepney routes with dynamic radius expansion
     async findNearestJeepneyRoutes(userLocation) {
         console.log('Finding nearest jeepney routes...');
         
-        const maxRadius = 2000; // Maximum search radius in meters (2km)
-        const radiusStep = 200; // Expand by 200m each step
+        const maxRadius = 2000;
+        const radiusStep = 200;
         
-        // Show loading for route search
         document.getElementById('loading').style.display = 'block';
         
         try {
-            // Remove previous search radius circle
             if (this.searchRadiusCircle) {
                 this.map.removeLayer(this.searchRadiusCircle);
             }
             
-            // Create expanding radius animation
             const expandRadius = async () => {
                 for (let radius = 100; radius <= maxRadius; radius += radiusStep) {
-                    // Update search radius circle
                     if (this.searchRadiusCircle) {
                         this.map.removeLayer(this.searchRadiusCircle);
                     }
@@ -426,20 +414,16 @@ async useMyLocationNoRoutes(field, event) {
                         dashArray: '5, 5'
                     }).addTo(this.map);
                     
-                    // Find routes within current radius
                     const routesInRadius = this.findRoutesWithinRadius(userLocation, radius);
                     
                     if (routesInRadius.length > 0) {
-                        // Found routes! Stop expanding and display results
                         this.displayNearestRoutes(routesInRadius, userLocation, radius);
                         break;
                     }
                     
-                    // Wait a bit before expanding further (creates animation effect)
                     await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 
-                // If no routes found even at max radius
                 if (this.nearestRoutes.length === 0) {
                     this.showNotification('❌ No jeepney routes found within 2km. Try a different location.', 'error');
                 }
@@ -455,14 +439,12 @@ async useMyLocationNoRoutes(field, event) {
         }
     }
 
-    // NEW: Find routes within a specific radius
     findRoutesWithinRadius(userLocation, radius) {
         const nearbyRoutes = [];
         
         Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
             const allRoutePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
             
-            // Find the closest point on this route to user location
             let minDistance = Infinity;
             let closestPoint = null;
             
@@ -474,7 +456,6 @@ async useMyLocationNoRoutes(field, event) {
                 }
             });
             
-            // If route is within search radius, add it to results
             if (minDistance <= radius) {
                 nearbyRoutes.push({
                     routeName: routeName,
@@ -486,40 +467,37 @@ async useMyLocationNoRoutes(field, event) {
             }
         });
         
-        // Sort by distance (closest first)
-        return nearbyRoutes.sort((a, b) => a.distance - b.distance).slice(0, 5); // Top 5 closest
+        return nearbyRoutes.sort((a, b) => a.distance - b.distance).slice(0, 5);
     }
 
-    // NEW: Get transportation recommendation based on distance
     getTransportRecommendation(distance) {
-        if (distance <= 300) { // Within 300m
+        if (distance <= 300) {
             return {
                 type: 'walk',
                 message: `🚶‍♂️ Walk ${Math.round(distance)}m to jeepney route`,
-                time: Math.round(distance / 80), // 80m per minute walking
+                time: Math.round(distance / 80),
                 color: '#4caf50'
             };
-        } else if (distance <= 1000) { // 300m - 1km
+        } else if (distance <= 1000) {
             return {
                 type: 'walk_or_tricycle',
                 message: `🚶‍♂️ Walk ${Math.round(distance)}m or 🛺 Take tricycle`,
-                time: Math.round(distance / 80), // Walking time
-                tricycleTime: Math.round(distance / 200), // 200m per minute for tricycle
+                time: Math.round(distance / 80),
+                tricycleTime: Math.round(distance / 200),
                 tricycleFare: distance <= 500 ? '₱10-15' : '₱15-25',
                 color: '#ff9800'
             };
-        } else { // Over 1km
+        } else {
             return {
                 type: 'tricycle',
                 message: `🛺 Take tricycle (${Math.round(distance)}m away)`,
-                time: Math.round(distance / 200), // 200m per minute for tricycle
+                time: Math.round(distance / 200),
                 fare: '₱25-40',
                 color: '#f44336'
             };
         }
     }
 
-    // NEW: Display nearest routes with recommendations
     displayNearestRoutes(routes, userLocation, searchRadius) {
         this.nearestRoutes = routes;
         
@@ -565,13 +543,10 @@ async useMyLocationNoRoutes(field, event) {
         this.showNotification(`✅ Found ${routes.length} jeepney routes nearby!`, 'success');
     }
 
-    // NEW: Show walking route to jeepney stop
     showWalkingRoute(startCoords, endCoords, distance) {
-        // Clear existing routes first
         routeManager.clearAllRoutesSilently();
         
-        // Create walking route line (simplified - straight line for demo)
-        const walkingRoute = L.polyline([startCoords, endCoords], {
+        this.currentWalkingRoute = L.polyline([startCoords, endCoords], {
             color: '#4caf50',
             weight: 4,
             opacity: 0.8,
@@ -579,8 +554,7 @@ async useMyLocationNoRoutes(field, event) {
             lineCap: 'round'
         }).addTo(this.map);
         
-        // Add markers for start and end points
-        L.marker(startCoords, {
+        this.walkingStartMarker = L.marker(startCoords, {
             icon: L.divIcon({
                 className: 'walking-marker',
                 html: '🚶',
@@ -592,7 +566,7 @@ async useMyLocationNoRoutes(field, event) {
         .bindPopup('<b>Your Location</b><br>Start walking from here')
         .openPopup();
         
-        L.marker(endCoords, {
+        this.walkingEndMarker = L.marker(endCoords, {
             icon: L.divIcon({
                 className: 'jeepney-marker',
                 html: '🚍',
@@ -604,11 +578,9 @@ async useMyLocationNoRoutes(field, event) {
         .bindPopup('<b>Jeepney Stop</b><br>Nearest pickup point')
         .openPopup();
         
-        // Fit map to show the walking route
-        this.map.fitBounds(walkingRoute.getBounds());
+        this.map.fitBounds(this.currentWalkingRoute.getBounds());
         
-        // Show walking route details
-        const walkingTime = Math.round(distance / 80); // 80m per minute walking
+        const walkingTime = Math.round(distance / 80);
         const detailsDiv = document.getElementById('route-details');
         detailsDiv.innerHTML = `
             <h4>🚶 Walking Route to Jeepney</h4>
@@ -619,17 +591,54 @@ async useMyLocationNoRoutes(field, event) {
                 <p><strong>Tip:</strong> Look for the nearest tricycle if you have luggage or it's raining</p>
             </div>
             <div style="margin-top: 15px;">
-                <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
-                    🗑️ Clear Route
+                <button class="control-btn" style="background: #dc3545;" onclick="app.clearWalkingRoute()">
+                    🗑️ Clear Walking Route
                 </button>
             </div>
         `;
         detailsDiv.style.display = 'block';
     }
 
-    // Calculate distance between two coordinates (in meters)
+    clearWalkingRoute() {
+        console.log('Clearing walking route...');
+        
+        if (this.currentWalkingRoute) {
+            this.map.removeLayer(this.currentWalkingRoute);
+            this.currentWalkingRoute = null;
+        }
+        if (this.walkingStartMarker) {
+            this.map.removeLayer(this.walkingStartMarker);
+            this.walkingStartMarker = null;
+        }
+        if (this.walkingEndMarker) {
+            this.map.removeLayer(this.walkingEndMarker);
+            this.walkingEndMarker = null;
+        }
+        
+        this.map.eachLayer((layer) => {
+            if (layer instanceof L.Polyline && 
+                layer.options.color === '#4caf50' && 
+                layer.options.dashArray === '5, 5') {
+                this.map.removeLayer(layer);
+            }
+            
+            if (layer instanceof L.Marker) {
+                const icon = layer.options.icon;
+                if (icon && (icon.options.className === 'walking-marker' || 
+                            icon.options.className === 'jeepney-marker' ||
+                            icon.options.html === '🚶' || 
+                            icon.options.html === '🚍')) {
+                    this.map.removeLayer(layer);
+                }
+            }
+        });
+        
+        document.getElementById('route-details').style.display = 'none';
+        this.showNotification('🗑️ Walking route cleared!', 'info');
+    }
+
     calculateDistance(coord1, coord2) {
-        const R = 6371000; // Earth radius in meters
+        const R = 6371000;
         const lat1 = coord1[0] * Math.PI / 180;
         const lat2 = coord2[0] * Math.PI / 180;
         const deltaLat = (coord2[0] - coord1[0]) * Math.PI / 180;
@@ -643,19 +652,15 @@ async useMyLocationNoRoutes(field, event) {
         return R * c;
     }
 
-    // NEW: Clear current location and destination
     clearLocationAndRoutes() {
         console.log('Clearing location inputs and routes...');
         
-        // Clear input fields
         document.getElementById('startLocation').value = '';
         document.getElementById('endLocation').value = '';
         
-        // Clear user location data
         this.userLocation = null;
         this.nearestRoutes = [];
         
-        // Remove location marker and accuracy circle from map
         if (this.currentLocationMarker) {
             this.map.removeLayer(this.currentLocationMarker);
             this.currentLocationMarker = null;
@@ -669,22 +674,17 @@ async useMyLocationNoRoutes(field, event) {
             this.searchRadiusCircle = null;
         }
         
-        // Clear route options display
+        this.clearAllWalkingRoutes();
+        
         document.getElementById('route-options').innerHTML = '';
         document.getElementById('route-options').style.display = 'none';
         
-        // Clear all routes from map
         routeManager.clearAllRoutesSilently();
         
-        // Show confirmation
         this.showNotification('🗑️ Location inputs and routes cleared!', 'info');
-        
-        console.log('Location inputs and routes cleared successfully');
     }
 
-    // Helper method for notifications
     showNotification(message, type = 'info') {
-        // Create notification element
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
@@ -705,7 +705,6 @@ async useMyLocationNoRoutes(field, event) {
         
         document.body.appendChild(notification);
         
-        // Remove after 3 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
@@ -713,52 +712,40 @@ async useMyLocationNoRoutes(field, event) {
         }, 3000);
     }
 
-    // NEW: IP-based location fallback
-    async getIPBasedLocation() {
-        try {
-            const response = await fetch('https://ipapi.co/json/');
-            const data = await response.json();
-            
-            if (data.latitude && data.longitude) {
-                console.log('IP-based location:', data);
-                return [data.latitude, data.longitude];
-            }
-        } catch (error) {
-            console.error('IP-based location failed:', error);
+    clearAllWalkingRoutes() {
+        console.log('Clearing all walking routes...');
+        
+        if (this.currentWalkingRoute) {
+            this.map.removeLayer(this.currentWalkingRoute);
+            this.currentWalkingRoute = null;
+        }
+        if (this.walkingStartMarker) {
+            this.map.removeLayer(this.walkingStartMarker);
+            this.walkingStartMarker = null;
+        }
+        if (this.walkingEndMarker) {
+            this.map.removeLayer(this.walkingEndMarker);
+            this.walkingEndMarker = null;
         }
         
-        // Fallback to Batangas city center
-        return [13.7565, 121.0583];
-    }
-
-    // IMPROVED Reverse Geocoding
-    async reverseGeocode(lat, lng) {
-        try {
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
-            );
-            const data = await response.json();
-            
-            if (data.display_name) {
-                // Return a shorter, more relevant address
-                const address = data.display_name;
-                
-                // Extract the most relevant parts
-                const parts = address.split(',');
-                if (parts.length >= 3) {
-                    // Return street/area, barangay, city
-                    return `${parts[0].trim()}, ${parts[1].trim()}, Batangas City`;
-                }
-                return address;
+        this.map.eachLayer((layer) => {
+            if (layer instanceof L.Polyline && layer.options.dashArray === '5, 5') {
+                this.map.removeLayer(layer);
             }
-        } catch (error) {
-            console.error('Reverse geocoding error:', error);
-        }
-        return null;
+            
+            if (layer instanceof L.Marker) {
+                const icon = layer.options.icon;
+                if (icon && (icon.options.className === 'walking-marker' || icon.options.className === 'jeepney-marker')) {
+                    this.map.removeLayer(layer);
+                }
+            }
+        });
+        
+        console.log('All walking routes cleared');
     }
 }
 
-// Route Manager
+// Enhanced Route Manager
 class RouteManager {
     constructor() {
         this.routeLayers = {};
@@ -779,7 +766,6 @@ class RouteManager {
             
             const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
             
-            // Clear existing route with same name if it exists
             if (this.routeLayers[routeName]) {
                 if (this.routeLayers[routeName].route && app.map.hasLayer(this.routeLayers[routeName].route)) {
                     app.map.removeLayer(this.routeLayers[routeName].route);
@@ -789,7 +775,6 @@ class RouteManager {
                 }
             }
             
-            // Create new route
             const routeLayer = L.polyline(latlngs, {
                 color: routeData.color,
                 weight: 6,
@@ -798,7 +783,6 @@ class RouteManager {
                 lineJoin: 'round'
             }).addTo(app.map);
             
-            // Add waypoint markers
             const waypointsLayer = L.layerGroup().addTo(app.map);
             routeData.waypoints.forEach((waypoint, index) => {
                 L.marker(waypoint)
@@ -810,22 +794,18 @@ class RouteManager {
                     .addTo(waypointsLayer);
             });
                         
-            // Store the layer
             this.routeLayers[routeName] = {
                 route: routeLayer,
                 waypoints: waypointsLayer,
                 data: routeData
             };
             
-            // Add to active routes if not already there
             if (!this.activeRoutes.includes(routeName)) {
                 this.activeRoutes.push(routeName);
             }
             
-            // Fit map to show the route
             app.map.fitBounds(routeLayer.getBounds());
             
-            // Update UI
             this.updateRouteDetails(routeName, routeData, route, hour);
             this.updateActiveRoute(routeName);
             
@@ -854,7 +834,6 @@ class RouteManager {
             return data.routes[0];
         } catch (error) {
             console.error('Routing error:', error);
-            // Fallback - create straight line
             return {
                 geometry: {
                     type: 'LineString',
@@ -869,7 +848,6 @@ class RouteManager {
     clearAllRoutesSilently() {
         console.log('Clearing all routes silently...');
         
-        // Clear all route layers from map
         Object.keys(this.routeLayers).forEach(routeName => {
             const layerGroup = this.routeLayers[routeName];
             
@@ -894,11 +872,9 @@ class RouteManager {
             }
         });
         
-        // Reset tracking
         this.routeLayers = {};
         this.activeRoutes = [];
         
-        // Clear UI but don't show alert
         document.getElementById('route-details').style.display = 'none';
         document.querySelectorAll('.route-item').forEach(item => {
             item.classList.remove('active');
@@ -908,13 +884,11 @@ class RouteManager {
     }
     
     async showAllRoutes() {
-        // Clear existing routes silently first
         this.clearAllRoutesSilently();
         
         const hour = parseInt(document.getElementById('timeSlider').value);
         let routesLoaded = 0;
         
-        // Show loading
         document.getElementById('loading').style.display = 'block';
         
         try {
@@ -948,7 +922,6 @@ class RouteManager {
                 }
             }
             
-            // Show success message
             if (routesLoaded > 0) {
                 app.showNotification(`✅ Showing all ${routesLoaded} jeepney routes!`, 'success');
             } else {
@@ -975,17 +948,14 @@ class RouteManager {
     }
 
     updateRouteDetails(routeName, routeData, routeInfo, hour) {
-        // Don't show individual route details when showing transfer routes
-        // Check if we're currently showing a transfer route
         const currentDetails = document.getElementById('route-details').innerHTML;
         if (currentDetails.includes('Transfer Route')) {
-            return; // Don't override transfer route details
+            return;
         }
         
         const detailsDiv = document.getElementById('route-details');
         const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
         
-        // Calculate ETA
         const baseDuration = routeInfo.duration ? Math.round(routeInfo.duration / 60) : routeData.baseTime;
         const traffic = this.getTrafficMultiplier(hour);
         const trafficAdjustedTime = baseDuration * traffic.multiplier;
@@ -1036,9 +1006,53 @@ class RouteManager {
             alert(`${routeName} is already in your favorites!`);
         }
     }
+
+    clearAllRoutes() {
+        console.log('Clearing all routes...');
+        
+        app.clearAllWalkingRoutes();
+        
+        Object.keys(this.routeLayers).forEach(routeName => {
+            const layerGroup = this.routeLayers[routeName];
+            
+            if (layerGroup.route) {
+                try {
+                    if (app.map.hasLayer(layerGroup.route)) {
+                        app.map.removeLayer(layerGroup.route);
+                    }
+                } catch (error) {
+                    console.warn(`Error removing route layer for ${routeName}:`, error);
+                }
+            }
+            
+            if (layerGroup.waypoints) {
+                try {
+                    if (app.map.hasLayer(layerGroup.waypoints)) {
+                        app.map.removeLayer(layerGroup.waypoints);
+                    }
+                } catch (error) {
+                    console.warn(`Error removing waypoints for ${routeName}:`, error);
+                }
+            }
+        });
+        
+        this.routeLayers = {};
+        this.activeRoutes = [];
+        
+        document.getElementById('route-details').style.display = 'none';
+        document.querySelectorAll('.route-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        app.map.setView([13.7565, 121.0583], 13);
+        
+        console.log('All routes cleared successfully');
+        alert('All routes cleared!');
+    }
 }
 
-// IMPROVED Route Planner with Multi-Jeepney Support
+
+// COMPLETE ENHANCED RoutePlanner Class with Realistic Fares
 class RoutePlanner {
     async planRoute() {
         const start = document.getElementById('startLocation').value;
@@ -1055,7 +1069,6 @@ class RoutePlanner {
         try {
             let startCoords, endCoords;
             
-            // Handle "My Location" coordinates
             if (start.includes('My Location') && app.userLocation) {
                 startCoords = app.userLocation;
             } else {
@@ -1072,21 +1085,21 @@ class RoutePlanner {
                 throw new Error('Could not find one or both locations');
             }
             
-            // Find routes with transfers
-            const routeOptions = this.findRoutesWithTransfers(startCoords, endCoords);
+            // Store coordinates for use in other methods
+            this.currentStartCoords = startCoords;
+            this.currentEndCoords = endCoords;
+            
+            // Find comprehensive route combinations with realistic fares
+            const routeOptions = this.findCompleteRouteCombinations(startCoords, endCoords);
             
             if (routeOptions.length === 0) {
-                document.getElementById('route-options').innerHTML = `
-                    <p style="color: #dc3545; text-align: center;">
-                        No routes found between "${start}" and "${end}"<br>
-                        <small>Try different locations or check if locations are within Batangas City</small>
-                    </p>
-                `;
+                this.showRealisticTricycleOption(startCoords, endCoords);
             } else {
-                this.displayRouteOptions(routeOptions, start, end);
+                this.displayRouteOptions(routeOptions, start, end, startCoords, endCoords);
             }
             
         } catch (error) {
+            console.error('Route planning error:', error);
             document.getElementById('route-options').innerHTML = 
                 `<p style="color: #dc3545; text-align: center;">Error: ${error.message}</p>`;
         } finally {
@@ -1095,294 +1108,886 @@ class RoutePlanner {
         }
     }
 
-    // IMPROVED: Find routes with transfer support
-    findRoutesWithTransfers(startCoords, endCoords, maxDistance = 1000) {
-        const routeOptions = [];
+    // Find comprehensive route combinations with realistic fares
+    findCompleteRouteCombinations(startCoords, endCoords, maxDistance = 3000) {
+        const allOptions = [];
         
-        // First, try direct routes
-        const directRoutes = this.findDirectRoutes(startCoords, endCoords, maxDistance);
-        if (directRoutes.length > 0) {
-            routeOptions.push(...directRoutes.map(route => ({
-                type: 'direct',
-                routes: [route],
-                totalFare: this.extractFare(route.data.fare),
-                totalTime: route.data.baseTime,
-                confidence: 'high'
-            })));
-        }
+        console.log('Finding comprehensive route combinations...');
         
-        // Then, try routes with one transfer
-        const transferRoutes = this.findTransferRoutes(startCoords, endCoords, maxDistance);
-        routeOptions.push(...transferRoutes);
+        // 1. Direct routes to BatStateU-Alangilan
+        const directRoutes = this.findDirectRoutesToBatStateU(startCoords, endCoords, maxDistance);
+        allOptions.push(...directRoutes);
         
-        // Sort by total time (fastest first)
-        return routeOptions.sort((a, b) => a.totalTime - b.totalTime).slice(0, 5);
+        // 2. Routes via main terminals/transfer points
+        const terminalRoutes = this.findRoutesViaTerminals(startCoords, endCoords, maxDistance);
+        allOptions.push(...terminalRoutes);
+        
+        // 3. Multi-jeepney combinations (2-3 jeepneys)
+        const multiJeepneyRoutes = this.findComplexJeepneyCombinations(startCoords, endCoords, maxDistance);
+        allOptions.push(...multiJeepneyRoutes);
+        
+        // 4. Tricycle + Multiple Jeepneys
+        const tricycleMultiRoutes = this.findTricycleMultiJeepneyRoutes(startCoords, endCoords, maxDistance);
+        allOptions.push(...tricycleMultiRoutes);
+        
+        // 5. Walking + Multiple Jeepneys
+        const walkingMultiRoutes = this.findWalkingMultiJeepneyRoutes(startCoords, endCoords, maxDistance);
+        allOptions.push(...walkingMultiRoutes);
+        
+        // Filter and prioritize by cost
+        const validOptions = allOptions.filter(option => 
+            this.doesRouteReachDestination(option, endCoords) &&
+            this.isRouteRealistic(option) &&
+            option.totalTime <= 90 // Max 1.5 hours
+        );
+        
+        console.log('Comprehensive routes found:', validOptions.length);
+        
+        return validOptions
+            .sort((a, b) => a.totalFare - b.totalFare) // Sort by cost first
+            .slice(0, 8);
     }
 
-    findDirectRoutes(startCoords, endCoords, maxDistance) {
+    // Find routes specifically to BatStateU-Alangilan
+    findDirectRoutesToBatStateU(startCoords, endCoords, maxDistance) {
         const directRoutes = [];
         
-        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-            const allRoutePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-            
-            // Check if route passes near both start and end points
-            const nearStart = allRoutePoints.some(point => 
-                this.calculateDistance(startCoords, point) <= maxDistance
-            );
-            
-            const nearEnd = allRoutePoints.some(point => 
-                this.calculateDistance(endCoords, point) <= maxDistance
-            );
-            
-            if (nearStart && nearEnd) {
-                directRoutes.push({
-                    name: routeName,
-                    data: routeData
-                });
+        // Routes that go directly to BatStateU-Alangilan area
+        const routesToBatStateU = ['Batangas - Alangilan', 'Batangas - Balagtas', 'Batangas - Soro Soro'];
+        
+        routesToBatStateU.forEach(routeName => {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                const nearStart = this.isNearRoute(startCoords, routeData, maxDistance);
+                const nearEnd = this.isNearRoute(endCoords, routeData, 500); // BatStateU should be close
+                
+                if (nearStart && nearEnd) {
+                    const startWalkDistance = this.findDistanceToRoute(startCoords, routeData);
+                    const endWalkDistance = this.findDistanceToRoute(endCoords, routeData);
+                    
+                    if (startWalkDistance <= 2000 && endWalkDistance <= 1000) {
+                        const startWalkTime = Math.round(startWalkDistance / 80);
+                        const endWalkTime = Math.round(endWalkDistance / 80);
+                        
+                        const totalTime = startWalkTime + routeData.baseTime + endWalkTime;
+                        const totalFare = this.extractFare(routeData.fare);
+                        
+                        directRoutes.push({
+                            type: 'direct_batstateu',
+                            routes: [routeName],
+                            startWalk: { distance: startWalkDistance, time: startWalkTime },
+                            endWalk: { distance: endWalkDistance, time: endWalkTime },
+                            totalFare: totalFare,
+                            totalTime: Math.round(totalTime),
+                            confidence: 'high',
+                            reachesDestination: true,
+                            description: `Direct to BatStateU via ${routeName}`
+                        });
+                    }
+                }
             }
         });
         
         return directRoutes;
     }
 
-    // NEW: Find routes that require transfers
-    findTransferRoutes(startCoords, endCoords, maxDistance) {
-        const transferRoutes = [];
+    // Find routes via major terminals/transfer points
+    findRoutesViaTerminals(startCoords, endCoords, maxDistance) {
+        const terminalRoutes = [];
         
-        // Find routes that start near the start location
-        const startRoutes = Object.entries(jeepneyRoutes).filter(([routeName, routeData]) => {
-            const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-            return allPoints.some(point => this.calculateDistance(startCoords, point) <= maxDistance);
-        });
+        // Define major transfer points
+        const transferPoints = {
+            'SM City Batangas': [13.755992307747455, 121.0688025248553],
+            'Batangas City Grand Terminal': [13.790637338793799, 121.06163057927537],
+            'Golden Gate College': [13.757046128756366, 121.06059676718314],
+            'Bago/New Public Market': [13.750063862524781, 121.05566279787223]
+        };
         
-        // Find routes that end near the destination
-        const endRoutes = Object.entries(jeepneyRoutes).filter(([routeName, routeData]) => {
-            const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
-            return allPoints.some(point => this.calculateDistance(endCoords, point) <= maxDistance);
-        });
-        
-        // Find transfer points between start and end routes
-        startRoutes.forEach(([startRouteName, startRouteData]) => {
-            endRoutes.forEach(([endRouteName, endRouteData]) => {
-                if (startRouteName !== endRouteName) {
-                    const transferPoint = this.findTransferPoint(startRouteData, endRouteData);
-                    if (transferPoint) {
-                        const totalFare = this.extractFare(startRouteData.fare) + this.extractFare(endRouteData.fare);
-                        const totalTime = startRouteData.baseTime + endRouteData.baseTime + 10; // +10 minutes for transfer
-                        
-                        transferRoutes.push({
-                            type: 'transfer',
-                            routes: [startRouteName, endRouteName],
-                            transferPoint: transferPoint,
-                            totalFare: totalFare,
-                            totalTime: totalTime,
-                            confidence: 'medium'
-                        });
+        // For each transfer point, find routes from start and to destination
+        Object.entries(transferPoints).forEach(([pointName, pointCoords]) => {
+            // Find routes from start to transfer point
+            const routesToTransfer = this.findRoutesBetweenPoints(startCoords, pointCoords, maxDistance);
+            // Find routes from transfer point to BatStateU
+            const routesFromTransfer = this.findRoutesBetweenPoints(pointCoords, endCoords, maxDistance);
+            
+            // Combine routes
+            routesToTransfer.forEach(toRoute => {
+                routesFromTransfer.forEach(fromRoute => {
+                    if (toRoute.name !== fromRoute.name) {
+                        const routeOption = this.createTerminalTransferRoute(
+                            toRoute, fromRoute, pointName, startCoords, endCoords
+                        );
+                        if (routeOption) terminalRoutes.push(routeOption);
                     }
+                });
+            });
+        });
+        
+        return terminalRoutes;
+    }
+
+    // Find complex jeepney combinations (2-3 jeepneys)
+    findComplexJeepneyCombinations(startCoords, endCoords, maxDistance) {
+        const complexRoutes = [];
+        
+        // Get all possible start routes
+        const startRoutes = this.findRoutesNearLocation(startCoords, maxDistance);
+        
+        // Get all possible end routes (to BatStateU)
+        const endRoutes = this.findRoutesNearLocation(endCoords, 1000);
+        
+        // Find 2-jeepney combinations
+        startRoutes.forEach(route1 => {
+            endRoutes.forEach(route2 => {
+                if (route1.name !== route2.name) {
+                    // Try direct transfer
+                    const transferPoint = this.findBestTransferPoint(route1.data, route2.data);
+                    if (transferPoint && transferPoint.walkDistance <= 300) {
+                        const routeOption = this.createTwoJeepneyRoute(
+                            route1, route2, transferPoint, startCoords, endCoords
+                        );
+                        if (routeOption) complexRoutes.push(routeOption);
+                    }
+                    
+                    // Try via intermediate route
+                    this.findIntermediateRoutes(route1, route2, startCoords, endCoords)
+                        .forEach(threeJeepOption => {
+                            if (threeJeepOption) complexRoutes.push(threeJeepOption);
+                        });
                 }
             });
         });
         
-        return transferRoutes;
+        return complexRoutes;
     }
 
-    findTransferPoint(route1, route2) {
-        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
-        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
+    // Find intermediate routes for 3-jeepney combinations
+    findIntermediateRoutes(route1, route2, startCoords, endCoords) {
+        const intermediateOptions = [];
+        const allRoutes = Object.entries(jeepneyRoutes).map(([name, data]) => ({ name, data }));
         
-        for (const point1 of route1Points) {
-            for (const point2 of route2Points) {
-                if (this.calculateDistance(point1, point2) <= 500) { // Within 500 meters
-                    // Find the landmark name for this point
-                    for (const [landmark, coords] of Object.entries(allStops)) {
-                        if (this.calculateDistance(point1, coords) <= 200) {
-                            return { name: landmark, coordinates: point1 };
-                        }
+        allRoutes.forEach(midRoute => {
+            if (midRoute.name !== route1.name && midRoute.name !== route2.name) {
+                const transfer1 = this.findBestTransferPoint(route1.data, midRoute.data);
+                const transfer2 = this.findBestTransferPoint(midRoute.data, route2.data);
+                
+                if (transfer1 && transfer2 && transfer1.walkDistance <= 300 && transfer2.walkDistance <= 300) {
+                    const routeOption = this.createThreeJeepneyRoute(
+                        route1, midRoute, route2, transfer1, transfer2, startCoords, endCoords
+                    );
+                    if (routeOption && routeOption.totalTime <= 60) {
+                        intermediateOptions.push(routeOption);
                     }
-                    return { name: 'Transfer Point', coordinates: point1 };
                 }
             }
+        });
+        
+        return intermediateOptions.slice(0, 2); // Limit to 2 best options
+    }
+
+    // Find tricycle + multiple jeepney routes
+    findTricycleMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
+        const tricycleMultiRoutes = [];
+        
+        // Find nearest jeepney route to start
+        const nearestStartRoute = this.findNearestRoute(startCoords, 2000);
+        if (!nearestStartRoute) return tricycleMultiRoutes;
+        
+        // Find routes from that point to BatStateU
+        const startPoint = this.findNearestPointOnRoute(startCoords, nearestStartRoute.data).point;
+        const routesToBatStateU = this.findRoutesBetweenPoints(startPoint, endCoords, maxDistance);
+        
+        routesToBatStateU.forEach(endRoute => {
+            if (endRoute.name !== nearestStartRoute.name) {
+                const tricycleDistance = nearestStartRoute.distance;
+                
+                // Only use tricycle for reasonable distances (300m - 2km)
+                if (tricycleDistance >= 300 && tricycleDistance <= 2000) {
+                    const tricycleTime = Math.round(tricycleDistance / 200);
+                    const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
+                    const jeepneyTime = endRoute.data.baseTime;
+                    const totalTime = tricycleTime + jeepneyTime + 5;
+                    const totalFare = tricycleFare + this.extractFare(endRoute.data.fare);
+                    
+                    tricycleMultiRoutes.push({
+                        type: 'tricycle_jeepney',
+                        routes: [endRoute.name],
+                        tricycle: {
+                            distance: tricycleDistance,
+                            time: tricycleTime,
+                            fare: tricycleFare,
+                            toPoint: startPoint
+                        },
+                        totalFare: totalFare,
+                        totalTime: Math.round(totalTime),
+                        confidence: 'high',
+                        reachesDestination: true,
+                        description: `Tricycle to ${endRoute.name} then to BatStateU`
+                    });
+                }
+            }
+        });
+        
+        return tricycleMultiRoutes;
+    }
+
+    // Find walking + multiple jeepney routes
+    findWalkingMultiJeepneyRoutes(startCoords, endCoords, maxDistance) {
+        const walkingMultiRoutes = [];
+        
+        const endRoutes = this.findRoutesNearLocation(endCoords, maxDistance);
+        
+        endRoutes.forEach(endRoute => {
+            const nearestPoint = this.findNearestPointOnRoute(startCoords, endRoute.data);
+            const walkDistance = nearestPoint.distance;
+            
+            // Realistic walking distance: 100m to 1.5km
+            if (walkDistance >= 100 && walkDistance <= 1500) {
+                const walkTime = Math.round(walkDistance / 80);
+                const jeepneyTime = endRoute.data.baseTime * 0.8;
+                const totalTime = walkTime + jeepneyTime;
+                const totalFare = this.extractFare(endRoute.data.fare);
+                
+                walkingMultiRoutes.push({
+                    type: 'walking_jeepney',
+                    routes: [endRoute.name],
+                    walking: {
+                        distance: walkDistance,
+                        time: walkTime,
+                        toPoint: nearestPoint.point
+                    },
+                    totalFare: totalFare,
+                    totalTime: Math.round(totalTime),
+                    confidence: 'medium',
+                    reachesDestination: true
+                });
+            }
+        });
+        
+        return walkingMultiRoutes;
+    }
+
+    // Calculate REALISTIC tricycle fares for Batangas
+    calculateRealisticTricycleFare(distance) {
+        // Realistic tricycle fares for Batangas City based on actual prices
+        if (distance <= 500) return 15;    // Short distance: ₱15
+        if (distance <= 1000) return 20;   // Medium distance: ₱20
+        if (distance <= 1500) return 25;   // Medium-long: ₱25
+        if (distance <= 2000) return 30;   // Long distance: ₱30
+        if (distance <= 2500) return 35;   // Very long: ₱35
+        if (distance <= 3000) return 40;   // Maximum reasonable: ₱40
+        if (distance <= 4000) return 50;   // 4km: ₱50
+        if (distance <= 5000) return 60;   // 5km: ₱60
+        if (distance <= 6000) return 70;   // 6km: ₱70
+        if (distance <= 7000) return 80;   // 7km: ₱80
+        return 90 + Math.floor((distance - 7000) / 1000) * 10; // ₱90+ for very long distances
+    }
+
+    // Create terminal transfer route
+    createTerminalTransferRoute(toRoute, fromRoute, terminalName, startCoords, endCoords) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, toRoute.data);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, fromRoute.data);
+        
+        if (startWalkDistance > 2000 || endWalkDistance > 1000) return null;
+        
+        const startWalkTime = Math.round(startWalkDistance / 80);
+        const endWalkTime = Math.round(endWalkDistance / 80);
+        const transferWaitTime = 5;
+        
+        const totalTime = startWalkTime + toRoute.data.baseTime + transferWaitTime + 
+                         fromRoute.data.baseTime + endWalkTime;
+        const totalFare = this.extractFare(toRoute.data.fare) + this.extractFare(fromRoute.data.fare);
+        
+        return {
+            type: 'terminal_transfer',
+            routes: [toRoute.name, fromRoute.name],
+            terminal: terminalName,
+            startWalk: { distance: startWalkDistance, time: startWalkTime },
+            endWalk: { distance: endWalkDistance, time: endWalkTime },
+            totalFare: totalFare,
+            totalTime: Math.round(totalTime),
+            confidence: 'high',
+            reachesDestination: true,
+            description: `Via ${terminalName} transfer point`
+        };
+    }
+
+    // Create 2-jeepney route
+    createTwoJeepneyRoute(startRoute, endRoute, transferPoint, startCoords, endCoords) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, startRoute.data);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, endRoute.data);
+        
+        // Skip if walking distances are unrealistic
+        if (startWalkDistance < 50 || startWalkDistance > 2000 || endWalkDistance < 50 || endWalkDistance > 2000) {
+            return null;
         }
+        
+        const startWalkTime = Math.round(startWalkDistance / 80);
+        const endWalkTime = Math.round(endWalkDistance / 80);
+        const transferWalkTime = Math.round(transferPoint.walkDistance / 80);
+        
+        const jeepney1Time = startRoute.data.baseTime * 0.6;
+        const jeepney2Time = endRoute.data.baseTime * 0.6;
+        
+        const totalTime = startWalkTime + jeepney1Time + transferWalkTime + jeepney2Time + endWalkTime + 5;
+        
+        // Skip if total time is too long
+        if (totalTime > 60) return null;
+        
+        const totalFare = this.extractFare(startRoute.data.fare) + this.extractFare(endRoute.data.fare);
+        
+        return {
+            type: 'two_jeepney',
+            routes: [startRoute.name, endRoute.name],
+            transferPoints: [transferPoint],
+            startWalk: { distance: startWalkDistance, time: startWalkTime },
+            endWalk: { distance: endWalkDistance, time: endWalkTime },
+            totalFare: totalFare,
+            totalTime: Math.round(totalTime),
+            confidence: 'medium',
+            reachesDestination: true,
+            description: `${startRoute.name} + ${endRoute.name}`
+        };
+    }
+
+    // Create 3-jeepney route
+    createThreeJeepneyRoute(startRoute, midRoute, endRoute, transfer1, transfer2, startCoords, endCoords) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, startRoute.data);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, endRoute.data);
+        
+        // Skip if walking distances are unrealistic
+        if (startWalkDistance < 50 || startWalkDistance > 2000 || endWalkDistance < 50 || endWalkDistance > 2000) {
+            return null;
+        }
+        
+        const startWalkTime = Math.round(startWalkDistance / 80);
+        const endWalkTime = Math.round(endWalkDistance / 80);
+        const transfer1WalkTime = Math.round(transfer1.walkDistance / 80);
+        const transfer2WalkTime = Math.round(transfer2.walkDistance / 80);
+        
+        const jeepney1Time = startRoute.data.baseTime * 0.5;
+        const jeepney2Time = midRoute.data.baseTime * 0.5;
+        const jeepney3Time = endRoute.data.baseTime * 0.5;
+        
+        const totalTime = startWalkTime + jeepney1Time + transfer1WalkTime + jeepney2Time + 
+                         transfer2WalkTime + jeepney3Time + endWalkTime + 10;
+        
+        // Only include if it's reasonable (less than 60 minutes)
+        if (totalTime <= 60) {
+            const totalFare = this.extractFare(startRoute.data.fare) + 
+                             this.extractFare(midRoute.data.fare) + 
+                             this.extractFare(endRoute.data.fare);
+            
+            return {
+                type: 'three_jeepney',
+                routes: [startRoute.name, midRoute.name, endRoute.name],
+                transferPoints: [transfer1, transfer2],
+                startWalk: { distance: startWalkDistance, time: startWalkTime },
+                endWalk: { distance: endWalkDistance, time: endWalkTime },
+                totalFare: totalFare,
+                totalTime: Math.round(totalTime),
+                confidence: 'low',
+                reachesDestination: true,
+                description: `${startRoute.name} + ${midRoute.name} + ${endRoute.name}`
+            };
+        }
+        
         return null;
     }
 
-    extractFare(fareString) {
-        // Extract base numeric fare and apply Student/PWD discount (₱2) if enabled
-        const match = fareString.match(/₱?(\d+)/);
-        let value = match ? parseInt(match[1], 10) : 15; // Default to ₱15 if not found
-        const discountEnabled = document.getElementById('discountToggle')?.checked;
-        const discount = discountEnabled ? 2 : 0;
-        value = Math.max(value - discount, 0);
-        return value;
+    // Check if route is realistic
+    isRouteRealistic(routeOption) {
+        // Filter out routes with unrealistic walking distances
+        if (routeOption.startWalk && routeOption.startWalk.distance < 50) return false;
+        if (routeOption.endWalk && routeOption.endWalk.distance < 50) return false;
+        
+        // Filter out overly complex routes unless necessary
+        if (routeOption.type === 'three_jeepney' && routeOption.totalTime > 45) return false;
+        
+        // Filter out routes that are too long
+        if (routeOption.totalTime > 90) return false;
+        
+        // Filter out routes with unrealistic transfers
+        if (routeOption.transferPoints) {
+            for (const transfer of routeOption.transferPoints) {
+                if (transfer.walkDistance > 500) return false;
+            }
+        }
+        
+        return true;
     }
 
-    displayRouteOptions(routeOptions, start, end) {
-        let html = `<h5>🚍 Available Routes (${routeOptions.length} found):</h5>`;
+    showRealisticTricycleOption(startCoords, endCoords) {
+        if (!startCoords || !endCoords) {
+            console.error('Missing coordinates for tricycle option');
+            document.getElementById('route-options').innerHTML = 
+                `<p style="color: #dc3545; text-align: center;">Error: Could not calculate tricycle route. Please try again.</p>`;
+            return;
+        }
+
+        const distance = this.calculateDistance(startCoords, endCoords);
+        const tricycleTime = Math.round(distance / 200);
+        const tricycleFare = this.calculateRealisticTricycleFare(distance);
         
-        routeOptions.forEach((option, index) => {
-            if (option.type === 'direct') {
-                const route = option.routes[0];
-                html += `
-                    <div class="route-option" onclick="routeManager.createSnappedRoute('${route.name}', jeepneyRoutes['${route.name}'])">
-                        <strong>${index + 1}. ${route.name} (Direct Route)</strong>
-                        <div class="route-info">
-                            ${route.data.description}<br>
-                            🕐 ${option.totalTime} min • 💰 ₱${option.totalFare} • ✅ Direct
-                        </div>
-                    </div>
-                `;
-            } else if (option.type === 'transfer') {
-                // Create safe route names for the onclick handler
-                const route1 = option.routes[0].replace(/'/g, "\\'");
-                const route2 = option.routes[1].replace(/'/g, "\\'");
-                
-                html += `
-                    <div class="transfer-option">
-                        <strong>${index + 1}. Transfer Route</strong>
-                        <div class="transfer-route">
-                            <div class="route-leg">
-                                <strong>First Jeep:</strong> ${option.routes[0]}<br>
-                                <small>${jeepneyRoutes[option.routes[0]].description}</small>
-                            </div>
-                            <div class="transfer-point">
-                                🔄 Transfer at: ${option.transferPoint.name}
-                            </div>
-                            <div class="route-leg">
-                                <strong>Second Jeep:</strong> ${option.routes[1]}<br>
-                                <small>${jeepneyRoutes[option.routes[1]].description}</small>
-                            </div>
-                            <div class="route-info">
-                                🕐 Total: ${option.totalTime} min • 💰 Total Fare: ₱${option.totalFare}
-                            </div>
-                            <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showTransferRoute(['${route1}', '${route2}'])">
-                                Show This Route
+        // Also show jeepney + tricycle combinations as alternatives
+        const alternativeRoutes = this.findJeepneyTricycleAlternatives(startCoords, endCoords);
+        
+        let alternativesHtml = '';
+        if (alternativeRoutes.length > 0) {
+            alternativesHtml = `
+                <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                    <strong>💰 Cheaper Jeepney Alternatives:</strong>
+                    ${alternativeRoutes.map(route => `
+                        <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 6px;">
+                            <strong>${route.description}</strong><br>
+                            🕐 ${route.totalTime} min • 💰 ₱${route.totalFare}
+                            <button class="control-btn success" style="margin-top: 5px;" 
+                                onclick="routePlanner.showAlternativeRoute('${route.routes[0]}', ${route.tricycle?.distance || 0})">
+                                Show Route
                             </button>
                         </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        const html = `
+            <div class="tricycle-only-option">
+                <h5>🛺 Direct Tricycle</h5>
+                <div class="route-info">
+                    <p><strong>Most direct option (but expensive):</strong></p>
+                    <div class="route-leg">
+                        <strong>🛺 Direct to BatStateU-Alangilan</strong><br>
+                        📏 ${Math.round(distance)}m • 🕐 ${tricycleTime} min • 💰 ₱${tricycleFare}
                     </div>
-                `;
-            }
-        });
+                    <p><small>💡 <strong>Tip:</strong> Jeepney combinations below are usually cheaper for longer distances</small></p>
+                </div>
+                ${alternativesHtml}
+            </div>
+        `;
         
         document.getElementById('route-options').innerHTML = html;
     }
 
-    // NEW: Show transfer route on map
-    async showTransferRoute(routeNames) {
-        console.log('Showing transfer route:', routeNames);
+    // Find jeepney + tricycle alternatives
+    findJeepneyTricycleAlternatives(startCoords, endCoords) {
+        const alternatives = [];
+        const maxDistance = 3000;
         
-        // Clear existing routes first but don't show alert
+        // Find routes that get you closer to BatStateU
+        const routesNearBatStateU = this.findRoutesNearLocation(endCoords, 1500);
+        
+        routesNearBatStateU.forEach(route => {
+            const nearestPoint = this.findNearestPointOnRoute(startCoords, route.data);
+            const jeepneyDistance = this.findDistanceToRoute(startCoords, route.data);
+            const tricycleDistance = this.findDistanceToRoute(endCoords, route.data);
+            
+            // Only consider if jeepney ride is substantial and tricycle is short
+            if (jeepneyDistance <= 1000 && tricycleDistance <= 1000 && tricycleDistance >= 300) {
+                const jeepneyTime = route.data.baseTime * 0.7;
+                const tricycleTime = Math.round(tricycleDistance / 200);
+                const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
+                const totalTime = jeepneyTime + tricycleTime + 5;
+                const totalFare = this.extractFare(route.data.fare) + tricycleFare;
+                
+                alternatives.push({
+                    type: 'jeepney_tricycle',
+                    routes: [route.name],
+                    tricycle: {
+                        distance: tricycleDistance,
+                        time: tricycleTime,
+                        fare: tricycleFare
+                    },
+                    totalFare: totalFare,
+                    totalTime: Math.round(totalTime),
+                    description: `${route.name} + Tricycle (${Math.round(tricycleDistance)}m)`
+                });
+            }
+        });
+        
+        return alternatives.sort((a, b) => a.totalFare - b.totalFare).slice(0, 3);
+    }
+
+    // Display route options - FIXED VERSION
+    displayRouteOptions(routeOptions, start, end, startCoords, endCoords) {
+        if (routeOptions.length === 0) {
+            this.showRealisticTricycleOption(startCoords, endCoords);
+            return;
+        }
+        
+        let html = `<h5>🚍 Route Options to BatStateU-Alangilan (${routeOptions.length} found):</h5>`;
+        
+        routeOptions.forEach((option, index) => {
+            html += this.formatComprehensiveOption(option, index);
+        });
+        
+        // Add direct tricycle option for comparison
+        const directDistance = this.calculateDistance(startCoords, endCoords);
+        const directTricycleFare = this.calculateRealisticTricycleFare(directDistance);
+        
+        html += `
+            <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                <strong>🛺 Direct Tricycle Comparison:</strong>
+                <p>📏 ${Math.round(directDistance)}m • 🕐 ${Math.round(directDistance/200)} min • 💰 ₱${directTricycleFare}</p>
+                <small>For reference - jeepney combinations above are usually cheaper for longer distances</small>
+            </div>
+        `;
+        
+        document.getElementById('route-options').innerHTML = html;
+    }
+
+    // Format comprehensive route option
+    formatComprehensiveOption(option, index) {
+        let routeHtml = '';
+        
+        if (option.type === 'direct_batstateu') {
+            routeHtml = this.formatDirectBatStateUOption(option, index);
+        } else if (option.type === 'terminal_transfer') {
+            routeHtml = this.formatTerminalTransferOption(option, index);
+        } else if (option.type === 'tricycle_jeepney') {
+            routeHtml = this.formatTricycleJeepneyOption(option, index);
+        } else if (option.type === 'walking_jeepney') {
+            routeHtml = this.formatWalkingJeepneyOption(option, index);
+        } else if (option.type === 'two_jeepney') {
+            routeHtml = this.formatTwoJeepneyOption(option, index);
+        } else if (option.type === 'three_jeepney') {
+            routeHtml = this.formatThreeJeepneyOption(option, index);
+        }
+        
+        return routeHtml;
+    }
+
+    // Format direct BatStateU option
+    formatDirectBatStateUOption(option, index) {
+        const route = option.routes[0];
+        const routeData = jeepneyRoutes[route];
+        
+        return `
+            <div class="route-option" onclick="routeManager.createSnappedRoute('${route}', jeepneyRoutes['${route}'])">
+                <strong>${index + 1}. ${route} (Direct)</strong>
+                <div class="route-info">
+                    ${routeData.description}<br>
+                    🕐 ${option.totalTime} min • 💰 ${app.formatFare(routeData.fare)} • ✅ Direct to BatStateU
+                </div>
+            </div>
+        `;
+    }
+
+    // Format terminal transfer option
+    formatTerminalTransferOption(option, index) {
+        const route1 = option.routes[0];
+        const route2 = option.routes[1];
+        
+        return `
+            <div class="transfer-option">
+                <strong>${index + 1}. Via ${option.terminal}</strong>
+                <div class="transfer-route">
+                    <div class="route-leg">
+                        <strong>🚍 ${route1}</strong><br>
+                        <small>${jeepneyRoutes[route1].description}</small>
+                    </div>
+                    <div class="transfer-point">
+                        🔄 Transfer at ${option.terminal}
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${route2}</strong><br>
+                        <small>${jeepneyRoutes[route2].description}</small>
+                    </div>
+                    <div class="route-info">
+                        🕐 ${option.totalTime} min • 💰 ₱${option.totalFare}
+                    </div>
+                    <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showMultiJeepneyRoute(['${route1}', '${route2}'])">
+                        Show Route
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Format tricycle + jeepney option
+    formatTricycleJeepneyOption(option, index) {
+        const routeName = option.routes[0];
+        const routeData = jeepneyRoutes[routeName];
+        
+        return `
+            <div class="tricycle-option">
+                <strong>${index + 1}. Tricycle + ${routeName}</strong>
+                <div class="transfer-route">
+                    <div class="route-leg">
+                        <strong>🛺 Tricycle to Jeepney</strong><br>
+                        <small>${Math.round(option.tricycle.distance)}m • 🕐 ${option.tricycle.time} min • 💰 ₱${option.tricycle.fare}</small>
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${routeName}</strong><br>
+                        <small>${routeData.description}</small><br>
+                        🕐 ${Math.round(option.totalTime - option.tricycle.time)} min • 💰 ${app.formatFare(routeData.fare)}
+                    </div>
+                    <div class="route-info">
+                        🕐 Total: ${option.totalTime} min • 💰 Total: ₱${option.totalFare}
+                    </div>
+                    <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showTricycleJeepneyRoute('${routeName}', ${option.tricycle.distance})">
+                        Show Route
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Format walking + jeepney option
+    formatWalkingJeepneyOption(option, index) {
+        const routeName = option.routes[0];
+        const routeData = jeepneyRoutes[routeName];
+        
+        return `
+            <div class="walking-option">
+                <strong>${index + 1}. Walk + ${routeName}</strong>
+                <div class="transfer-route">
+                    <div class="route-leg">
+                        <strong>🚶 Walk to Jeepney</strong><br>
+                        <small>${Math.round(option.walking.distance)}m • 🕐 ${option.walking.time} min</small>
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${routeName}</strong><br>
+                        <small>${routeData.description}</small><br>
+                        🕐 ${Math.round(option.totalTime - option.walking.time)} min • 💰 ${app.formatFare(routeData.fare)}
+                    </div>
+                    <div class="route-info">
+                        🕐 Total: ${option.totalTime} min • 💰 Total: ₱${option.totalFare}
+                    </div>
+                    <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showWalkingJeepneyRoute('${routeName}', ${option.walking.distance})">
+                        Show Route
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Format 2-jeepney option
+    formatTwoJeepneyOption(option, index) {
+        const route1 = option.routes[0];
+        const route2 = option.routes[1];
+        
+        return `
+            <div class="multi-jeepney-option">
+                <strong>${index + 1}. ${route1} + ${route2}</strong>
+                <div class="transfer-route">
+                    <div class="route-leg">
+                        <strong>🚍 ${route1}</strong><br>
+                        <small>${jeepneyRoutes[route1].description}</small>
+                    </div>
+                    <div class="transfer-point">
+                        🔄 Transfer
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${route2}</strong><br>
+                        <small>${jeepneyRoutes[route2].description}</small>
+                    </div>
+                    <div class="route-info">
+                        🕐 ${option.totalTime} min • 💰 ₱${option.totalFare}
+                    </div>
+                    <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showMultiJeepneyRoute(['${route1}', '${route2}'])">
+                        Show Route
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Format 3-jeepney option
+    formatThreeJeepneyOption(option, index) {
+        const routes = option.routes;
+        
+        return `
+            <div class="multi-jeepney-option">
+                <strong>${index + 1}. ${routes[0]} + ${routes[1]} + ${routes[2]}</strong>
+                <div class="transfer-route">
+                    <div class="route-leg">
+                        <strong>🚍 ${routes[0]}</strong><br>
+                        <small>${jeepneyRoutes[routes[0]].description}</small>
+                    </div>
+                    <div class="transfer-point">
+                        🔄 Transfer
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${routes[1]}</strong><br>
+                        <small>${jeepneyRoutes[routes[1]].description}</small>
+                    </div>
+                    <div class="transfer-point">
+                        🔄 Transfer
+                    </div>
+                    <div class="route-leg">
+                        <strong>🚍 ${routes[2]}</strong><br>
+                        <small>${jeepneyRoutes[routes[2]].description}</small>
+                    </div>
+                    <div class="route-info">
+                        🕐 ${option.totalTime} min • 💰 ₱${option.totalFare}<br>
+                        <small>⚠️ Complex route with 2 transfers</small>
+                    </div>
+                    <button class="control-btn warning" onclick="event.stopPropagation(); routePlanner.showMultiJeepneyRoute(['${routes[0]}', '${routes[1]}', '${routes[2]}'])">
+                        Show Complex Route
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Show alternative route
+    showAlternativeRoute(routeName, tricycleDistance) {
         routeManager.clearAllRoutesSilently();
-        
-        // Show loading
         document.getElementById('loading').style.display = 'block';
         
         try {
-            // Show all routes in the transfer
-            for (const routeName of routeNames) {
-                const routeData = jeepneyRoutes[routeName];
-                if (routeData) {
-                    await routeManager.createSnappedRoute(routeName, routeData);
-                }
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                routeManager.createSnappedRoute(routeName, routeData);
             }
-            
-            // Create a custom route details for the transfer
-            this.showTransferRouteDetails(routeNames);
-            
+            this.showAlternativeRouteDetails(routeName, tricycleDistance);
         } catch (error) {
-            console.error('Error showing transfer route:', error);
-            alert('Error displaying transfer route. Please try again.');
+            console.error('Error showing alternative route:', error);
+            alert('Error displaying route. Please try again.');
         } finally {
             document.getElementById('loading').style.display = 'none';
         }
     }
 
-    // NEW: Show detailed information for transfer routes
-    showTransferRouteDetails(routeNames) {
+    // Show alternative route details
+    showAlternativeRouteDetails(routeName, tricycleDistance) {
+        const routeData = jeepneyRoutes[routeName];
+        const tricycleTime = Math.round(tricycleDistance / 200);
+        const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
+        const totalFare = this.extractFare(routeData.fare) + tricycleFare;
+        const totalTime = routeData.baseTime + tricycleTime + 5;
+        
         const detailsDiv = document.getElementById('route-details');
-        
-        let totalFare = 0;
-        let totalTime = 0;
-        let routeDescriptions = [];
-        
-        routeNames.forEach((routeName, index) => {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                totalFare += this.extractFare(routeData.fare);
-                totalTime += routeData.baseTime;
-                
-                if (index < routeNames.length - 1) {
-                    totalTime += 10; // Add 10 minutes for each transfer
-                }
-                
-                routeDescriptions.push({
-                    name: routeName,
-                    description: routeData.description,
-                    fare: routeData.fare,
-                    time: routeData.baseTime
-                });
-            }
-        });
-        
-        let routeHtml = '';
-        routeDescriptions.forEach((route, index) => {
-            routeHtml += `
-                <div class="route-leg">
-                    <strong>Leg ${index + 1}: ${route.name}</strong><br>
-                    <small>${route.description}</small><br>
-                    🕐 ${route.time} min • 💰 ${app.formatFare(route.fare)}
-                </div>
-            `;
-            
-            if (index < routeDescriptions.length - 1) {
-                routeHtml += `
-                    <div class="transfer-point">
-                        🔄 Transfer Point
-                    </div>
-                `;
-            }
-        });
-        
         detailsDiv.innerHTML = `
-            <h4>🔄 Transfer Route</h4>
-            <div class="transfer-route">
-                ${routeHtml}
-                <div class="route-info" style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 6px;">
-                    <strong>Total Journey:</strong><br>
-                    🕐 Total Time: ${totalTime} minutes<br>
-                    💰 Total Fare: ₱${totalFare}<br>
-                    🚍 ${routeNames.length} jeepney${routeNames.length > 1 ? 's' : ''}<br>
-                    🔄 ${routeNames.length - 1} transfer${routeNames.length - 1 > 1 ? 's' : ''}
-                </div>
-            </div>
-            
-            <div style="margin-top: 15px;">
-                <button class="control-btn secondary" onclick="routePlanner.saveFavoriteTransferRoute(['${routeNames.join("','")}'])">
-                    ⭐ Save This Transfer
-                </button>
-                <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
-                    🗑️ Clear Routes
-                </button>
+            <h4>🚍 + 🛺 Alternative Route</h4>
+            <div class="route-info">
+                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
+                <p><strong>Final Tricycle:</strong> ${Math.round(tricycleDistance)}m • ${tricycleTime} min • ₱${tricycleFare}</p>
+                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
+                <p><small>💡 This combination can be cheaper than direct tricycle for longer distances</small></p>
             </div>
         `;
         detailsDiv.style.display = 'block';
     }
 
-    // NEW: Save favorite transfer route
-    saveFavoriteTransferRoute(routeNames) {
-        const favorites = JSON.parse(localStorage.getItem('favoriteTransfers') || '[]');
-        const transferKey = routeNames.join('|');
-        
-        if (!favorites.includes(transferKey)) {
-            favorites.push(transferKey);
-            localStorage.setItem('favoriteTransfers', JSON.stringify(favorites));
-            alert(`Saved transfer route to favorites!`);
-        } else {
-            alert(`This transfer route is already in your favorites!`);
-        }
+    // ALL HELPER METHODS
+
+    // Find routes between two points
+    findRoutesBetweenPoints(point1, point2, maxDistance) {
+        return Object.entries(jeepneyRoutes)
+            .filter(([routeName, routeData]) => {
+                const nearPoint1 = this.isNearRoute(point1, routeData, maxDistance);
+                const nearPoint2 = this.isNearRoute(point2, routeData, maxDistance);
+                return nearPoint1 && nearPoint2;
+            })
+            .map(([name, data]) => ({ name, data }));
     }
 
+    // Find routes near location
+    findRoutesNearLocation(coords, maxDistance) {
+        return Object.entries(jeepneyRoutes)
+            .filter(([routeName, routeData]) => this.isNearRoute(coords, routeData, maxDistance))
+            .map(([name, data]) => ({ name, data }));
+    }
+
+    // Check if location is near route
+    isNearRoute(coords, routeData, maxDistance) {
+        const distance = this.findDistanceToRoute(coords, routeData);
+        return distance <= maxDistance;
+    }
+
+    // Find distance to nearest point on route
+    findDistanceToRoute(coords, routeData) {
+        const nearest = this.findNearestPointOnRoute(coords, routeData);
+        return nearest.distance;
+    }
+
+    // Find nearest point on route
+    findNearestPointOnRoute(coords, routeData) {
+        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        let nearestPoint = null;
+        let minDistance = Infinity;
+        
+        allPoints.forEach(point => {
+            const distance = this.calculateDistance(coords, point);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestPoint = point;
+            }
+        });
+        
+        return { point: nearestPoint, distance: minDistance };
+    }
+
+    // Find best transfer point between two routes
+    findBestTransferPoint(route1, route2) {
+        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
+        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
+        
+        let bestTransfer = null;
+        let minDistance = Infinity;
+        
+        for (const point1 of route1Points) {
+            for (const point2 of route2Points) {
+                const distance = this.calculateDistance(point1, point2);
+                if (distance < minDistance && distance <= 300) {
+                    minDistance = distance;
+                    bestTransfer = {
+                        name: this.findLandmarkName(point1) || 'Transfer Point',
+                        coordinates: point1,
+                        walkDistance: distance
+                    };
+                }
+            }
+        }
+        
+        return bestTransfer;
+    }
+
+    // Find nearest route
+    findNearestRoute(coords, maxDistance) {
+        let nearestRoute = null;
+        let minDistance = Infinity;
+        
+        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+            const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+            
+            allPoints.forEach(point => {
+                const distance = this.calculateDistance(coords, point);
+                if (distance < minDistance && distance <= maxDistance) {
+                    minDistance = distance;
+                    nearestRoute = {
+                        name: routeName,
+                        data: routeData,
+                        distance: distance
+                    };
+                }
+            });
+        });
+        
+        return nearestRoute;
+    }
+
+    // Check if transfer is valid
+    isValidTransfer(transferPoint) {
+        return transferPoint && transferPoint.walkDistance <= 300;
+    }
+
+    // Check if route reaches destination
+    doesRouteReachDestination(routeOption, endCoords) {
+        const lastRouteName = routeOption.routes[routeOption.routes.length - 1];
+        const lastRoute = jeepneyRoutes[lastRouteName];
+        
+        if (!lastRoute) return false;
+        
+        return this.isNearRoute(endCoords, lastRoute, 800);
+    }
+
+    // Calculate distance between coordinates
     calculateDistance(coord1, coord2) {
-        const R = 6371000; // Earth radius in meters
+        const R = 6371000;
         const lat1 = coord1[0] * Math.PI / 180;
         const lat2 = coord2[0] * Math.PI / 180;
         const deltaLat = (coord2[0] - coord1[0]) * Math.PI / 180;
@@ -1396,14 +2001,39 @@ class RoutePlanner {
         return R * c;
     }
 
+    // Extract fare from fare string
+    extractFare(fareString) {
+        const match = fareString.match(/₱?(\d+)/);
+        let value = match ? parseInt(match[1], 10) : 15;
+        const discountEnabled = document.getElementById('discountToggle')?.checked;
+        const discount = discountEnabled ? 2 : 0;
+        value = Math.max(value - discount, 0);
+        return value;
+    }
+
+    // Find landmark name for coordinates
+    findLandmarkName(coords) {
+        let closestLandmark = null;
+        let minDistance = Infinity;
+        
+        for (const [landmark, landmarkCoords] of Object.entries(allStops)) {
+            const distance = this.calculateDistance(coords, landmarkCoords);
+            if (distance < minDistance && distance <= 150) {
+                minDistance = distance;
+                closestLandmark = landmark;
+            }
+        }
+        
+        return closestLandmark;
+    }
+
+    // Geocode address
     async geocodeAddress(address) {
-        // First try to match with known stops
         const matchedLandmark = this.matchWithLandmarks(address);
         if (matchedLandmark) {
             return allStops[matchedLandmark];
         }
         
-        // Try OpenStreetMap geocoding
         try {
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Batangas City')}&limit=1`
@@ -1416,10 +2046,10 @@ class RoutePlanner {
             console.error('Geocoding error:', error);
         }
         
-        // Fallback to Batangas City center
         return [13.7565, 121.0583];
     }
 
+    // Match address with landmarks
     matchWithLandmarks(address) {
         const cleanAddress = address.toLowerCase().trim();
         for (const landmark of Object.keys(allStops)) {
@@ -1430,8 +2060,130 @@ class RoutePlanner {
         return null;
     }
 
-    useMyLocation(field) {
-        app.useMyLocation(field);
+    // ROUTE DISPLAY METHODS
+
+    async showTricycleJeepneyRoute(routeName, tricycleDistance) {
+        routeManager.clearAllRoutesSilently();
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                await routeManager.createSnappedRoute(routeName, routeData);
+            }
+            this.showTricycleRouteDetails(routeName, tricycleDistance);
+        } catch (error) {
+            console.error('Error showing tricycle route:', error);
+            alert('Error displaying route. Please try again.');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async showWalkingJeepneyRoute(routeName, walkDistance) {
+        routeManager.clearAllRoutesSilently();
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                await routeManager.createSnappedRoute(routeName, routeData);
+            }
+            this.showWalkingJeepneyDetails(routeName, walkDistance);
+        } catch (error) {
+            console.error('Error showing walking route:', error);
+            alert('Error displaying route. Please try again.');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async showMultiJeepneyRoute(routeNames) {
+        routeManager.clearAllRoutesSilently();
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            for (const routeName of routeNames) {
+                const routeData = jeepneyRoutes[routeName];
+                if (routeData) {
+                    await routeManager.createSnappedRoute(routeName, routeData);
+                }
+            }
+            this.showMultiJeepneyDetails(routeNames);
+        } catch (error) {
+            console.error('Error showing multi-jeepney route:', error);
+            alert('Error displaying route. Please try again.');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // DETAILS DISPLAY METHODS
+
+    showTricycleRouteDetails(routeName, tricycleDistance) {
+        const routeData = jeepneyRoutes[routeName];
+        const tricycleTime = Math.round(tricycleDistance / 200);
+        const tricycleFare = this.calculateRealisticTricycleFare(tricycleDistance);
+        const totalFare = tricycleFare + this.extractFare(routeData.fare);
+        const totalTime = tricycleTime + routeData.baseTime + 5;
+        
+        const detailsDiv = document.getElementById('route-details');
+        detailsDiv.innerHTML = `
+            <h4>🛺 + 🚍 Route Details</h4>
+            <div class="route-info">
+                <p><strong>Tricycle:</strong> ${Math.round(tricycleDistance)}m • ${tricycleTime} min • ₱${tricycleFare}</p>
+                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
+                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
+            </div>
+        `;
+        detailsDiv.style.display = 'block';
+    }
+
+    showWalkingJeepneyDetails(routeName, walkDistance) {
+        const routeData = jeepneyRoutes[routeName];
+        const walkTime = Math.round(walkDistance / 80);
+        const totalTime = walkTime + routeData.baseTime;
+        const totalFare = this.extractFare(routeData.fare);
+        
+        const detailsDiv = document.getElementById('route-details');
+        detailsDiv.innerHTML = `
+            <h4>🚶 + 🚍 Route Details</h4>
+            <div class="route-info">
+                <p><strong>Walk:</strong> ${Math.round(walkDistance)}m • ${walkTime} min</p>
+                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
+                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
+            </div>
+        `;
+        detailsDiv.style.display = 'block';
+    }
+
+    showMultiJeepneyDetails(routeNames) {
+        const detailsDiv = document.getElementById('route-details');
+        
+        let totalFare = 0;
+        let routeHtml = '';
+        
+        routeNames.forEach((routeName, index) => {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                totalFare += this.extractFare(routeData.fare);
+                
+                routeHtml += `
+                    <p><strong>Leg ${index + 1}: ${routeName}</strong> • ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
+                `;
+            }
+        });
+        
+        const estimatedTime = routeNames.length * 20 + (routeNames.length - 1) * 5;
+        
+        detailsDiv.innerHTML = `
+            <h4>🔄 Multi-Jeepney Route</h4>
+            <div class="route-info">
+                ${routeHtml}
+                <p><strong>Total:</strong> ~${estimatedTime} min • ₱${totalFare}</p>
+            </div>
+        `;
+        detailsDiv.style.display = 'block';
     }
 }
 
@@ -1465,7 +2217,7 @@ window.routePlanner = routePlanner;
 window.trafficLayer = trafficLayer;
 window.app = app;
 
-// Add emergency reset function
+// Utility functions
 window.resetSystem = function() {
     console.log('Emergency system reset...');
     routeManager.clearAllRoutes();
@@ -1475,7 +2227,46 @@ window.resetSystem = function() {
     alert('System has been reset!');
 };
 
-// NEW: Clear inputs and routes function
 window.clearInputsAndRoutes = function() {
     app.clearLocationAndRoutes();
+};
+
+// Add findNearestMainRoutes method to app
+app.findNearestMainRoutes = function() {
+    if (!this.userLocation) {
+        alert('Please use "My Location" first');
+        return;
+    }
+    
+    const mainRoutes = Object.entries(jeepneyRoutes)
+        .filter(([name, data]) => data.type === 'main')
+        .map(([name, data]) => ({ name, data }));
+    
+    const nearestMainRoutes = this.findRoutesWithinRadius(this.userLocation, 2000, mainRoutes);
+    this.displayNearestMainRoutes(nearestMainRoutes);
+};
+
+app.displayNearestMainRoutes = function(routes) {
+    let html = `<h5>🚍 Nearest Main Jeepney Routes</h5>`;
+    
+    routes.slice(0, 3).forEach((route, index) => {
+        html += `
+            <div class="nearest-route-item">
+                <div class="route-header">
+                    <strong>${index + 1}. ${route.routeName}</strong>
+                    <span class="distance-badge">${Math.round(route.distance)}m away</span>
+                </div>
+                <div class="route-info">
+                    ${route.routeData.description}<br>
+                    Frequency: ${route.routeData.frequency} • Fare: ${this.formatFare(route.routeData.fare)}
+                </div>
+                <button class="control-btn success" onclick="routeManager.createSnappedRoute('${route.routeName}', jeepneyRoutes['${route.routeName}'])">
+                    Show This Route
+                </button>
+            </div>
+        `;
+    });
+    
+    document.getElementById('route-options').innerHTML = html;
+    document.getElementById('route-options').style.display = 'block';
 };
