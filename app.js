@@ -1255,6 +1255,7 @@ class RouteManager {
 }
 
 // ENHANCED RoutePlanner Class with Improved Boarding Validation
+// Fixed RoutePlanner class with improved route matching
 class RoutePlanner {
     async planRoute() {
         const start = document.getElementById('startLocation').value;
@@ -1271,12 +1272,14 @@ class RoutePlanner {
         try {
             let startCoords, endCoords;
             
+            // Get coordinates for start location
             if (start.includes('My Location') && app.userLocation) {
                 startCoords = app.userLocation;
             } else {
                 startCoords = await this.geocodeAddress(start);
             }
             
+            // Get coordinates for end location  
             if (end.includes('My Location') && app.userLocation) {
                 endCoords = app.userLocation;
             } else {
@@ -1287,14 +1290,10 @@ class RoutePlanner {
                 throw new Error('Could not find one or both locations');
             }
             
-            // Store coordinates for use in other methods
-            this.currentStartCoords = startCoords;
-            this.currentEndCoords = endCoords;
+            // Find the best route options
+            const routeOptions = this.findRouteOptions(startCoords, endCoords);
             
-            // ENHANCED: Find route combinations with boarding validation
-            const routeOptions = this.findValidatedRouteCombinations(start, startCoords, endCoords);
-            
-            this.displayRouteOptions(routeOptions, start, end, startCoords, endCoords);
+            this.displayRouteOptions(routeOptions, start, end);
             
         } catch (error) {
             console.error('Route planning error:', error);
@@ -1306,223 +1305,400 @@ class RoutePlanner {
         }
     }
 
-    // ENHANCED: Find route combinations with boarding validation
-    findValidatedRouteCombinations(startLocation, startCoords, endCoords, maxDistance = 1500) {
-        const allOptions = [];
+    // IMPROVED: Find route options based on actual route paths
+    findRouteOptions(startCoords, endCoords) {
+        const routeOptions = [];
         
-        console.log('Finding validated route combinations with boarding checks...');
+        console.log('Finding routes from:', startCoords, 'to:', endCoords);
         
-        // 1. Direct routes with boarding validation
-        const directRoutes = this.findValidatedDirectRoutes(startLocation, startCoords, endCoords, maxDistance);
-        allOptions.push(...directRoutes);
+        // Check each route to see if it can serve this trip
+        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+            const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+            
+            // Find if route passes near start and end locations
+            const startProximity = this.findDistanceToPoints(startCoords, routePoints);
+            const endProximity = this.findDistanceToPoints(endCoords, routePoints);
+            
+            // Check if this route logically connects start and end
+            const canServeTrip = this.canRouteServeTrip(startCoords, endCoords, routePoints, routeData);
+            
+            if (canServeTrip) {
+                const startWalkDistance = startProximity.distance;
+                const endWalkDistance = endProximity.distance;
+                const startWalkTime = Math.round(startWalkDistance / 80); // 80m/min walking speed
+                const endWalkTime = Math.round(endWalkDistance / 80);
+                
+                // Calculate route segment time (proportional to distance)
+                const routeTime = this.calculateRouteSegmentTime(routeData, startProximity.index, endProximity.index);
+                
+                const totalTime = startWalkTime + routeTime + endWalkTime;
+                const fare = this.extractFare(routeData.fare);
+                
+                routeOptions.push({
+                    type: 'direct',
+                    routeName: routeName,
+                    routeData: routeData,
+                    startWalk: { distance: startWalkDistance, time: startWalkTime },
+                    endWalk: { distance: endWalkDistance, time: endWalkTime },
+                    routeTime: routeTime,
+                    totalTime: totalTime,
+                    totalFare: fare,
+                    confidence: this.calculateConfidence(startWalkDistance, endWalkDistance),
+                    description: `Direct route via ${routeName}`
+                });
+            }
+        });
         
-        // 2. Walking + Single Jeepney routes with boarding validation
-        const walkingJeepneyRoutes = this.findValidatedWalkingJeepneyRoutes(startLocation, startCoords, endCoords, maxDistance);
-        allOptions.push(...walkingJeepneyRoutes);
+        // Also look for transfer options
+        const transferOptions = this.findTransferOptions(startCoords, endCoords);
+        routeOptions.push(...transferOptions);
         
-        // 3. Transfer routes with boarding validation
-        const transferRoutes = this.findValidatedTransferRoutes(startLocation, startCoords, endCoords, maxDistance);
-        allOptions.push(...transferRoutes);
+        // Sort by total time and confidence
+        return routeOptions
+            .sort((a, b) => {
+                // Prefer direct routes
+            if (a.score !== b.score) {
+                return b.score - a.score; // Descending order (higher scores first)
+            }
+            
+            // Then by total time (shorter time first)
+            if (a.totalTime !== b.totalTime) {
+                return a.totalTime - b.totalTime;
+            }
+            
+            // Then by confidence (high > medium > low)
+            const confidenceOrder = { high: 3, medium: 2, low: 1 };
+            return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
+            })
+            .slice(0, 6); // Return top 6 options
+    }
+
+    calculateRouteScore(startWalkDistance, endWalkDistance, totalTime, fare, routeName) {
+    let score = 0;
+    
+    // Walking distance score (shorter walks = higher score)
+    const maxWalkDistance = 1000;
+    const walkScore = Math.max(0, 100 - ((startWalkDistance + endWalkDistance) / maxWalkDistance * 100));
+    score += walkScore;
+    
+    // Time score (shorter time = higher score)
+    const maxExpectedTime = 60; // minutes
+    const timeScore = Math.max(0, 100 - (totalTime / maxExpectedTime * 100));
+    score += timeScore;
+    
+    
+    // Route type preference (main routes preferred)
+    const routeData = jeepneyRoutes[routeName];
+    if (routeData.type === 'main') score += 20;
+    if (routeData.type === 'feeder') score += 10;
+    
+    // Specific route preferences (you can customize this based on known good routes)
+    const preferredRoutes = [
+        "Batangas - Alangilan",  // Best for port area        // Good coverage
+    ];
+    
+    if (preferredRoutes.includes(routeName)) {
+        score += 30;
+    }
+    
+    // Penalty for very long walking distances
+    if (startWalkDistance > 200 || endWalkDistance > 200) {
+        score -= 40;
+    }
+    
+    return Math.round(score);
+}
+
+    // IMPROVED: Check if a route can logically serve the trip
+    canRouteServeTrip(startCoords, endCoords, routePoints, routeData) {
+        if (routePoints.length < 2) return false;
         
-        // Filter out invalid options and prioritize
-        const validOptions = allOptions.filter(option => 
-            option.valid !== false && 
-            option.totalTime <= 90
+        // Find nearest points on route to start and end
+        const startNearest = this.findNearestPointOnRoute(startCoords, routeData);
+        const endNearest = this.findNearestPointOnRoute(endCoords, routeData);
+        
+        // Check if both points are reasonably close to the route
+        if (startNearest.distance > 500 || endNearest.distance > 500) {
+            return false;
+        }
+
+        // For specific known routes, apply special logic
+    if (routeData.description.toLowerCase().includes('port') || 
+        routeData.description.toLowerCase().includes('pier')) {
+        // Port routes should be prioritized for port destinations
+        const endNearPort = this.isNearPort(endCoords);
+        if (endNearPort) return true;
+    }
+        
+        // For circular routes, allow any order
+        if (routeData.description.toLowerCase().includes('circular')) {
+            return true;
+        }
+        
+        // For normal routes, check if the route direction makes sense
+        // Find the indices of the nearest points in the route
+        const startIndex = this.findPointIndexInRoute(startNearest.point, routePoints);
+        const endIndex = this.findPointIndexInRoute(endNearest.point, routePoints);
+        
+        // Route should go from start point to end point (start index < end index)
+        // Allow some flexibility for routes that might double back
+    
+
+        const pointDifference = Math.abs(startIndex - endIndex);
+    
+    // Must be at least 2 points apart and not too far apart in the route sequence
+    return pointDifference >= 2 && pointDifference <= routePoints.length - 2;
+    }
+
+    // NEW: Find distance to route points and return the closest point info
+    findDistanceToPoints(coords, points) {
+        let minDistance = Infinity;
+        let closestPoint = null;
+        let closestIndex = -1;
+        
+        points.forEach((point, index) => {
+            const distance = this.calculateDistance(coords, point);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestPoint = point;
+                closestIndex = index;
+            }
+        });
+        
+        return {
+            distance: minDistance,
+            point: closestPoint,
+            index: closestIndex
+        };
+    }
+
+    // NEW: Calculate time for a segment of the route
+    calculateRouteSegmentTime(routeData, startIndex, endIndex) {
+        const baseTime = routeData.baseTime || 30;
+        const totalPoints = routeData.secretWaypoints ? routeData.secretWaypoints.length : routeData.waypoints.length;
+        
+        // Calculate proportional time based on segment length
+        const pointDifference = Math.abs(endIndex - startIndex);
+        const segmentRatio = pointDifference / totalPoints;
+        
+        return Math.max(5, Math.round(baseTime * segmentRatio));
+    }
+
+    // NEW: Calculate confidence level for this route option
+    calculateConfidence(startWalkDistance, endWalkDistance) {
+        if (startWalkDistance <= 300 && endWalkDistance <= 300) return 'high';
+        if (startWalkDistance <= 500 && endWalkDistance <= 500) return 'medium';
+        return 'low';
+    }
+
+    // IMPROVED: Find transfer options between routes
+    findTransferOptions(startCoords, endCoords) {
+        const transferOptions = [];
+        const allRoutes = Object.entries(jeepneyRoutes);
+        
+        // Find routes near start
+        const startRoutes = allRoutes.filter(([name, data]) => 
+            this.findDistanceToRoute(startCoords, data) <= 800
         );
         
-        console.log('Validated routes found:', validOptions.length);
+        // Find routes near end
+        const endRoutes = allRoutes.filter(([name, data]) =>
+            this.findDistanceToRoute(endCoords, data) <= 800
+        );
         
-        return validOptions
-            .sort((a, b) => {
-                // Prioritize direct routes
-                if (a.type === 'direct_batstateu' && b.type !== 'direct_batstateu') return -1;
-                if (b.type === 'direct_batstateu' && a.type !== 'direct_batstateu') return 1;
-                // Then by total fare
-                return a.totalFare - b.totalFare;
-            })
-            .slice(0, 6);
-    }
-
-    // ENHANCED: Find direct routes with boarding validation
-    findValidatedDirectRoutes(startLocation, startCoords, endCoords, maxDistance) {
-        const directRoutes = [];
-        
-        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-            // Check boarding validity
-            let boardingValid = true;
-            let boardingMessage = "✅ Can board directly";
-            
-            if (!startLocation.includes('My Location')) {
-                const recommendation = app.getBoardingRecommendation(startLocation, routeName);
-                boardingValid = recommendation.valid;
-                boardingMessage = recommendation.message;
-            }
-            
-            if (boardingValid) {
-                const servesStart = this.doesRouteServeLocation(startCoords, routeData, maxDistance);
-                const servesEnd = this.doesRouteServeLocation(endCoords, routeData, 1000);
-                
-                if (servesStart && servesEnd) {
-                    const startWalkDistance = this.findDistanceToRoute(startCoords, routeData);
-                    const endWalkDistance = this.findDistanceToRoute(endCoords, routeData);
-                    
-                    if (startWalkDistance <= 1000 && endWalkDistance <= 800) {
-                        const startWalkTime = Math.round(startWalkDistance / 80);
-                        const endWalkTime = Math.round(endWalkDistance / 80);
-                        
-                        const totalTime = startWalkTime + routeData.baseTime + endWalkTime;
-                        const totalFare = this.extractFare(routeData.fare);
-                        
-                        directRoutes.push({
-                            type: 'direct_batstateu',
-                            routes: [routeName],
-                            startWalk: { distance: startWalkDistance, time: startWalkTime },
-                            endWalk: { distance: endWalkDistance, time: endWalkTime },
-                            totalFare: totalFare,
-                            totalTime: Math.round(totalTime),
-                            confidence: 'high',
-                            reachesDestination: true,
-                            description: `Direct to BatStateU via ${routeName}`,
-                            validated: true,
-                            boardingInfo: boardingMessage,
-                            valid: true
-                        });
-                    }
-                }
-            } else {
-                console.log(`Skipping ${routeName} - boarding not valid: ${boardingMessage}`);
-            }
-        });
-        
-        return directRoutes;
-    }
-
-    // ENHANCED: Find walking + jeepney routes with boarding validation
-    findValidatedWalkingJeepneyRoutes(startLocation, startCoords, endCoords, maxDistance) {
-        const walkingRoutes = [];
-        
-        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-            const servesEnd = this.doesRouteServeLocation(endCoords, routeData, 1000);
-            
-            if (servesEnd) {
-                const nearestPoint = this.findNearestPointOnRoute(startCoords, routeData);
-                const walkDistance = nearestPoint.distance;
-                
-                // Check if walking is reasonable and route serves destination
-                if (walkDistance >= 50 && walkDistance <= 1500) {
-                    const walkTime = Math.round(walkDistance / 80);
-                    const jeepneyTime = routeData.baseTime * 0.8;
-                    const totalTime = walkTime + jeepneyTime;
-                    const totalFare = this.extractFare(routeData.fare);
-                    
-                    // Check boarding validity for the actual boarding point
-                    const nearestLandmark = app.findNearestLandmark(nearestPoint.point);
-                    let boardingMessage = "🚶 Walk to boarding point";
-                    
-                    if (nearestLandmark) {
-                        const recommendation = app.getBoardingRecommendation(nearestLandmark, routeName);
-                        boardingMessage = recommendation.message;
-                    }
-                    
-                    walkingRoutes.push({
-                        type: 'walking_jeepney',
-                        routes: [routeName],
-                        walking: {
-                            distance: walkDistance,
-                            time: walkTime,
-                            toPoint: nearestPoint.point
-                        },
-                        totalFare: totalFare,
-                        totalTime: Math.round(totalTime),
-                        confidence: 'medium',
-                        reachesDestination: true,
-                        validated: true,
-                        boardingInfo: boardingMessage,
-                        valid: true
-                    });
-                }
-            }
-        });
-        
-        return walkingRoutes;
-    }
-
-    // ENHANCED: Find transfer routes with boarding validation
-    findValidatedTransferRoutes(startLocation, startCoords, endCoords, maxDistance) {
-        const transferRoutes = [];
-        
-        // Get routes near start location
-        const startRoutes = this.findRoutesNearLocation(startCoords, maxDistance);
-        // Get routes that serve the destination
-        const endRoutes = this.findRoutesNearLocation(endCoords, 1000);
-        
-        startRoutes.forEach(startRoute => {
-            endRoutes.forEach(endRoute => {
-                if (startRoute.name !== endRoute.name) {
-                    // Check if both routes can be boarded
-                    let startBoardingValid = true;
-                    let endBoardingValid = true;
-                    
-                    if (!startLocation.includes('My Location')) {
-                        const startRecommendation = app.getBoardingRecommendation(startLocation, startRoute.name);
-                        startBoardingValid = startRecommendation.valid;
-                    }
-                    
-                    if (startBoardingValid) {
-                        const transferPoint = this.findBestTransferPoint(startRoute.data, endRoute.data);
-                        if (transferPoint && transferPoint.walkDistance <= 300) {
-                            const routeOption = this.createTwoJeepneyRoute(
-                                startRoute, endRoute, transferPoint, startCoords, endCoords
-                            );
-                            if (routeOption) {
-                                routeOption.validated = true;
-                                routeOption.boardingInfo = "🔄 Transfer required";
-                                routeOption.valid = true;
-                                transferRoutes.push(routeOption);
-                            }
-                        }
+        // Find possible transfers between start and end routes
+        startRoutes.forEach(([startName, startData]) => {
+            endRoutes.forEach(([endName, endData]) => {
+                if (startName !== endName) {
+                    const transferPoint = this.findTransferPoint(startData, endData);
+                    if (transferPoint && transferPoint.distance <= 500) {
+                        const option = this.createTransferOption(
+                            startCoords, endCoords, 
+                            startName, startData, 
+                            endName, endData, 
+                            transferPoint
+                        );
+                        if (option) transferOptions.push(option);
                     }
                 }
             });
         });
         
-        return transferRoutes;
+        return transferOptions;
     }
 
-    // ... (KEEP ALL EXISTING HELPER METHODS, they remain the same)
-    doesRouteServeLocation(locationCoords, routeData, maxDistance) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+    // IMPROVED: Find transfer point between two routes
+    findTransferPoint(route1, route2) {
+        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
+        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
         
-        // Find nearest point on route
-        const nearestPoint = this.findNearestPointOnRoute(locationCoords, routeData);
+        let bestTransfer = null;
+        let minDistance = Infinity;
         
-        // Must be within reasonable distance
-        return nearestPoint.distance <= maxDistance;
+        route1Points.forEach(point1 => {
+            route2Points.forEach(point2 => {
+                const distance = this.calculateDistance(point1, point2);
+                if (distance < minDistance && distance <= 500) {
+                    minDistance = distance;
+                    bestTransfer = {
+                        point: point1,
+                        distance: distance,
+                        walkTime: Math.round(distance / 80)
+                    };
+                }
+            });
+        });
+        
+        return bestTransfer;
     }
 
-    findRoutesNearLocation(coords, maxDistance) {
-        return Object.entries(jeepneyRoutes)
-            .filter(([routeName, routeData]) => this.isNearRoute(coords, routeData, maxDistance))
-            .map(([name, data]) => ({ name, data }));
+    // IMPROVED: Create transfer route option
+    createTransferOption(startCoords, endCoords, startRouteName, startData, endRouteName, endData, transfer) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, startData);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, endData);
+        
+        if (startWalkDistance > 1000 || endWalkDistance > 1000) return null;
+        
+        const startWalkTime = Math.round(startWalkDistance / 80);
+        const endWalkTime = Math.round(endWalkDistance / 80);
+        const transferWalkTime = transfer.walkTime;
+        
+        // Estimate route times (reduced since we're only taking segments)
+        const route1Time = Math.round(startData.baseTime * 0.4);
+        const route2Time = Math.round(endData.baseTime * 0.4);
+        
+        const totalTime = startWalkTime + route1Time + transferWalkTime + route2Time + endWalkTime + 5; // +5 min transfer wait
+        
+        const totalFare = this.extractFare(startData.fare) + this.extractFare(endData.fare);
+        
+        return {
+            type: 'transfer',
+            routeNames: [startRouteName, endRouteName],
+            routeData: [startData, endData],
+            startWalk: { distance: startWalkDistance, time: startWalkTime },
+            endWalk: { distance: endWalkDistance, time: endWalkTime },
+            transfer: transfer,
+            routeTimes: [route1Time, route2Time],
+            totalTime: totalTime,
+            totalFare: totalFare,
+            confidence: 'medium',
+            description: `${startRouteName} → ${endRouteName}`
+        };
     }
 
-    isNearRoute(coords, routeData, maxDistance) {
-        const distance = this.findDistanceToRoute(coords, routeData);
-        return distance <= maxDistance;
+    // IMPROVED: Display route options
+    displayRouteOptions(routeOptions, start, end) {
+        if (routeOptions.length === 0) {
+            document.getElementById('route-options').innerHTML = 
+                `<div class="no-routes-found">
+                    <h5>❌ No Routes Found</h5>
+                    <p>No jeepney routes found from <strong>${start}</strong> to <strong>${end}</strong>.</p>
+                    <p>Try using more specific location names or use "My Location".</p>
+                </div>`;
+            return;
+        }
+        
+        let html = `<h5>🚍 Route Options (${routeOptions.length} found):</h5>`;
+        
+        routeOptions.forEach((option, index) => {
+            if (option.type === 'direct') {
+                html += this.formatDirectOption(option, index);
+            } else if (option.type === 'transfer') {
+                html += this.formatTransferOption(option, index);
+            }
+        });
+        
+        document.getElementById('route-options').innerHTML = html;
     }
 
+    // Format direct route option
+    formatDirectOption(option, index) {
+        const confidenceBadge = option.confidence === 'high' ? '🟢' : option.confidence === 'medium' ? '🟡' : '🔴';
+        
+        return `
+            <div class="route-option direct-route" onclick="routeManager.createSnappedRoute('${option.routeName}', jeepneyRoutes['${option.routeName}'])">
+                <div class="option-header">
+                    <strong>${index + 1}. ${option.routeName}</strong>
+                    <span class="confidence-badge">${confidenceBadge}</span>
+                </div>
+                <div class="route-details">
+                    <div class="route-leg">
+                        <span class="leg-walk">🚶 ${Math.round(option.startWalk.distance)}m (${option.startWalk.time}min)</span>
+                        → <span class="leg-jeep">🚍 ${option.routeTime}min</span>
+                        → <span class="leg-walk">🚶 ${Math.round(option.endWalk.distance)}m (${option.endWalk.time}min)</span>
+                    </div>
+                    <div class="route-summary">
+                        🕐 Total: ${option.totalTime}min • 💰 ${option.routeData.fare}
+                    </div>
+                    <div class="route-description">
+                        ${option.routeData.description}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Format transfer route option
+    formatTransferOption(option, index) {
+        return `
+            <div class="route-option transfer-route">
+                <div class="option-header">
+                    <strong>${index + 1}. ${option.routeNames[0]} + ${option.routeNames[1]}</strong>
+                    <span class="confidence-badge">🟡</span>
+                </div>
+                <div class="route-details">
+                    <div class="route-leg">
+                        <span class="leg-walk">🚶 ${Math.round(option.startWalk.distance)}m (${option.startWalk.time}min)</span>
+                        → <span class="leg-jeep">🚍 ${option.routeNames[0]} (${option.routeTimes[0]}min)</span>
+                        → <span class="leg-transfer">🔄 Transfer (${option.transfer.walkTime}min)</span>
+                        → <span class="leg-jeep">🚍 ${option.routeNames[1]} (${option.routeTimes[1]}min)</span>
+                        → <span class="leg-walk">🚶 ${Math.round(option.endWalk.distance)}m (${option.endWalk.time}min)</span>
+                    </div>
+                    <div class="route-summary">
+                        🕐 Total: ${option.totalTime}min • 💰 ₱${option.totalFare}
+                    </div>
+                    <button class="control-btn success" onclick="routePlanner.showTransferRoute(['${option.routeNames[0]}', '${option.routeNames[1]}'])">
+                        Show Both Routes
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Show transfer route on map
+    async showTransferRoute(routeNames) {
+        routeManager.clearAllRoutesSilently();
+        document.getElementById('loading').style.display = 'block';
+        
+        try {
+            for (const routeName of routeNames) {
+                const routeData = jeepneyRoutes[routeName];
+                if (routeData) {
+                    await routeManager.createSnappedRoute(routeName, routeData);
+                }
+            }
+        } catch (error) {
+            console.error('Error showing transfer route:', error);
+            alert('Error displaying routes. Please try again.');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // KEEP ALL EXISTING HELPER METHODS (they work correctly)
     findDistanceToRoute(coords, routeData) {
+        const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
         const nearest = this.findNearestPointOnRoute(coords, routeData);
         return nearest.distance;
     }
 
     findNearestPointOnRoute(coords, routeData) {
-        const allPoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
         
         let nearestPoint = null;
         let minDistance = Infinity;
         
-        allPoints.forEach(point => {
+        routePoints.forEach(point => {
             const distance = this.calculateDistance(coords, point);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -1533,65 +1709,13 @@ class RoutePlanner {
         return { point: nearestPoint, distance: minDistance };
     }
 
-    findBestTransferPoint(route1, route2) {
-        const route1Points = [...route1.waypoints, ...(route1.secretWaypoints || [])];
-        const route2Points = [...route2.waypoints, ...(route2.secretWaypoints || [])];
-        
-        let bestTransfer = null;
-        let minDistance = Infinity;
-        
-        for (const point1 of route1Points) {
-            for (const point2 of route2Points) {
-                const distance = this.calculateDistance(point1, point2);
-                if (distance < minDistance && distance <= 300) {
-                    minDistance = distance;
-                    bestTransfer = {
-                        name: app.findNearestLandmark(point1) || 'Transfer Point',
-                        coordinates: point1,
-                        walkDistance: distance
-                    };
-                }
+    findPointIndexInRoute(point, routePoints) {
+        for (let i = 0; i < routePoints.length; i++) {
+            if (routePoints[i][0] === point[0] && routePoints[i][1] === point[1]) {
+                return i;
             }
         }
-        
-        return bestTransfer;
-    }
-
-    createTwoJeepneyRoute(startRoute, endRoute, transferPoint, startCoords, endCoords) {
-        const startWalkDistance = this.findDistanceToRoute(startCoords, startRoute.data);
-        const endWalkDistance = this.findDistanceToRoute(endCoords, endRoute.data);
-        
-        // Skip if walking distances are unrealistic
-        if (startWalkDistance < 50 || startWalkDistance > 2000 || endWalkDistance < 50 || endWalkDistance > 2000) {
-            return null;
-        }
-        
-        const startWalkTime = Math.round(startWalkDistance / 80);
-        const endWalkTime = Math.round(endWalkDistance / 80);
-        const transferWalkTime = Math.round(transferPoint.walkDistance / 80);
-        
-        const jeepney1Time = startRoute.data.baseTime * 0.6;
-        const jeepney2Time = endRoute.data.baseTime * 0.6;
-        
-        const totalTime = startWalkTime + jeepney1Time + transferWalkTime + jeepney2Time + endWalkTime + 5;
-        
-        // Skip if total time is too long
-        if (totalTime > 60) return null;
-        
-        const totalFare = this.extractFare(startRoute.data.fare) + this.extractFare(endRoute.data.fare);
-        
-        return {
-            type: 'two_jeepney',
-            routes: [startRoute.name, endRoute.name],
-            transferPoints: [transferPoint],
-            startWalk: { distance: startWalkDistance, time: startWalkTime },
-            endWalk: { distance: endWalkDistance, time: endWalkTime },
-            totalFare: totalFare,
-            totalTime: Math.round(totalTime),
-            confidence: 'medium',
-            reachesDestination: true,
-            description: `${startRoute.name} + ${endRoute.name}`
-        };
+        return -1;
     }
 
     calculateDistance(coord1, coord2) {
@@ -1611,14 +1735,11 @@ class RoutePlanner {
 
     extractFare(fareString) {
         const match = fareString.match(/₱?(\d+)/);
-        let value = match ? parseInt(match[1], 10) : 15;
-        const discountEnabled = document.getElementById('discountToggle')?.checked;
-        const discount = discountEnabled ? 2 : 0;
-        value = Math.max(value - discount, 0);
-        return value;
+        return match ? parseInt(match[1], 10) : 15;
     }
 
     async geocodeAddress(address) {
+        // First check if it matches a known stop
         const matchedLandmark = this.matchWithLandmarks(address);
         if (matchedLandmark) {
             return allStops[matchedLandmark];
@@ -1636,6 +1757,7 @@ class RoutePlanner {
             console.error('Geocoding error:', error);
         }
         
+        // Default to Batangas City center if no results
         return [13.7565, 121.0583];
     }
 
@@ -1648,204 +1770,8 @@ class RoutePlanner {
         }
         return null;
     }
-
-    // ENHANCED: Display route options with boarding information
-    displayRouteOptions(routeOptions, start, end, startCoords, endCoords) {
-        if (routeOptions.length === 0) {
-            document.getElementById('route-options').innerHTML = 
-                `<div class="no-routes-found">
-                    <h5>❌ No Valid Routes Found</h5>
-                    <p>No accessible jeepney routes found from <strong>${start}</strong> to <strong>${end}</strong>.</p>
-                    <p><strong>Possible reasons:</strong></p>
-                    <ul>
-                        <li>Your starting location may not be served by jeepneys going to BatStateU</li>
-                        <li>You may need to walk to a different boarding point</li>
-                        <li>Try using "My Location" for more accurate results</li>
-                    </ul>
-                    <button class="control-btn secondary" onclick="app.useMyLocationWithRoutes('start', event)">📍 Use My Location</button>
-                </div>`;
-            return;
-        }
-        
-        let html = `<h5>🚍 Route Options to BatStateU-Alangilan (${routeOptions.length} found):</h5>`;
-        
-        routeOptions.forEach((option, index) => {
-            html += this.formatValidatedOption(option, index);
-        });
-        
-        document.getElementById('route-options').innerHTML = html;
-    }
-
-    // ENHANCED: Format validated route option
-    formatValidatedOption(option, index) {
-        let boardingBadge = '';
-        if (option.boardingInfo) {
-            const badgeClass = option.boardingInfo.includes('❌') ? 'boarding-invalid' : 
-                             option.boardingInfo.includes('⚠️') ? 'boarding-warning' : 'boarding-valid';
-            boardingBadge = `<div class="boarding-badge ${badgeClass}">${option.boardingInfo}</div>`;
-        }
-
-        if (option.type === 'direct_batstateu') {
-            const route = option.routes[0];
-            const routeData = jeepneyRoutes[route];
-            
-            return `
-                <div class="route-option validated-route" onclick="routeManager.createSnappedRoute('${route}', jeepneyRoutes['${route}'])">
-                    <strong>${index + 1}. ${route} (Direct)</strong>
-                    ${boardingBadge}
-                    <div class="route-info">
-                        ${routeData.description}<br>
-                        🕐 ${option.totalTime} min • 💰 ${app.formatFare(routeData.fare)} • ✅ Direct to BatStateU
-                    </div>
-                </div>
-            `;
-        } else if (option.type === 'walking_jeepney') {
-            const routeName = option.routes[0];
-            const routeData = jeepneyRoutes[routeName];
-            
-            return `
-                <div class="walking-option validated-route">
-                    <strong>${index + 1}. Walk + ${routeName}</strong>
-                    ${boardingBadge}
-                    <div class="transfer-route">
-                        <div class="route-leg">
-                            <strong>🚶 Walk to Jeepney</strong><br>
-                            <small>${Math.round(option.walking.distance)}m • 🕐 ${option.walking.time} min</small>
-                        </div>
-                        <div class="route-leg">
-                            <strong>🚍 ${routeName}</strong><br>
-                            <small>${routeData.description}</small><br>
-                            🕐 ${Math.round(option.totalTime - option.walking.time)} min • 💰 ${app.formatFare(routeData.fare)}
-                        </div>
-                        <div class="route-info">
-                            🕐 Total: ${option.totalTime} min • 💰 Total: ₱${option.totalFare}
-                        </div>
-                        <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showWalkingJeepneyRoute('${routeName}', ${option.walking.distance})">
-                            Show Route
-                        </button>
-                    </div>
-                </div>
-            `;
-        } else if (option.type === 'two_jeepney') {
-            const route1 = option.routes[0];
-            const route2 = option.routes[1];
-            
-            return `
-                <div class="multi-jeepney-option validated-route">
-                    <strong>${index + 1}. ${route1} + ${route2}</strong>
-                    ${boardingBadge}
-                    <div class="transfer-route">
-                        <div class="route-leg">
-                            <strong>🚍 ${route1}</strong><br>
-                            <small>${jeepneyRoutes[route1].description}</small>
-                        </div>
-                        <div class="transfer-point">
-                            🔄 Transfer
-                        </div>
-                        <div class="route-leg">
-                            <strong>🚍 ${route2}</strong><br>
-                            <small>${jeepneyRoutes[route2].description}</small>
-                        </div>
-                        <div class="route-info">
-                            🕐 ${option.totalTime} min • 💰 ₱${option.totalFare}
-                        </div>
-                        <button class="control-btn success" onclick="event.stopPropagation(); routePlanner.showMultiJeepneyRoute(['${route1}', '${route2}'])">
-                            Show Route
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        return '';
-    }
-
-    // ... (KEEP ALL OTHER EXISTING METHODS)
-    async showWalkingJeepneyRoute(routeName, walkDistance) {
-        routeManager.clearAllRoutesSilently();
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                await routeManager.createSnappedRoute(routeName, routeData);
-            }
-            this.showWalkingJeepneyDetails(routeName, walkDistance);
-        } catch (error) {
-            console.error('Error showing walking route:', error);
-            alert('Error displaying route. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-        }
-    }
-
-    async showMultiJeepneyRoute(routeNames) {
-        routeManager.clearAllRoutesSilently();
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            for (const routeName of routeNames) {
-                const routeData = jeepneyRoutes[routeName];
-                if (routeData) {
-                    await routeManager.createSnappedRoute(routeName, routeData);
-                }
-            }
-            this.showMultiJeepneyDetails(routeNames);
-        } catch (error) {
-            console.error('Error showing multi-jeepney route:', error);
-            alert('Error displaying route. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-        }
-    }
-
-    showWalkingJeepneyDetails(routeName, walkDistance) {
-        const routeData = jeepneyRoutes[routeName];
-        const walkTime = Math.round(walkDistance / 80);
-        const totalTime = walkTime + routeData.baseTime;
-        const totalFare = this.extractFare(routeData.fare);
-        
-        const detailsDiv = document.getElementById('route-details');
-        detailsDiv.innerHTML = `
-            <h4>🚶 + 🚍 Route Details</h4>
-            <div class="route-info">
-                <p><strong>Walk:</strong> ${Math.round(walkDistance)}m • ${walkTime} min</p>
-                <p><strong>Jeepney (${routeName}):</strong> ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
-                <p><strong>Total:</strong> ${totalTime} min • ₱${totalFare}</p>
-            </div>
-        `;
-        detailsDiv.style.display = 'block';
-    }
-
-    showMultiJeepneyDetails(routeNames) {
-        const detailsDiv = document.getElementById('route-details');
-        
-        let totalFare = 0;
-        let routeHtml = '';
-        
-        routeNames.forEach((routeName, index) => {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                totalFare += this.extractFare(routeData.fare);
-                
-                routeHtml += `
-                    <p><strong>Leg ${index + 1}: ${routeName}</strong> • ${routeData.baseTime} min • ${app.formatFare(routeData.fare)}</p>
-                `;
-            }
-        });
-        
-        const estimatedTime = routeNames.length * 20 + (routeNames.length - 1) * 5;
-        
-        detailsDiv.innerHTML = `
-            <h4>🔄 Multi-Jeepney Route</h4>
-            <div class="route-info">
-                ${routeHtml}
-                <p><strong>Total:</strong> ~${estimatedTime} min • ₱${totalFare}</p>
-            </div>
-        `;
-        detailsDiv.style.display = 'block';
-    }
 }
+
 
 // Traffic Layer Manager
 class TrafficLayer {
@@ -1881,9 +1807,12 @@ window.app = app;
 window.resetSystem = function() {
     console.log('Emergency system reset...');
     routeManager.clearAllRoutes();
-    document.getElementById('route-options').innerHTML = '';
-    document.getElementById('startLocation').value = '';
-    document.getElementById('endLocation').value = '';
+    const routeOptions = document.getElementById('route-options');
+    if (routeOptions) routeOptions.innerHTML = '';
+    const startLocation = document.getElementById('startLocation');
+    const endLocation = document.getElementById('endLocation');
+    if (startLocation) startLocation.value = '';
+    if (endLocation) endLocation.value = '';
     alert('System has been reset!');
 };
 
@@ -1902,8 +1831,38 @@ app.findNearestMainRoutes = function() {
         .filter(([name, data]) => data.type === 'main')
         .map(([name, data]) => ({ name, data }));
     
-    const nearestMainRoutes = this.findValidatedRoutesWithinRadius(this.userLocation, 2000, mainRoutes);
+    // Use the existing method or create a simple one
+    const nearestMainRoutes = this.findRoutesWithinRadius(this.userLocation, 2000, mainRoutes);
     this.displayNearestMainRoutes(nearestMainRoutes);
+};
+
+// Add this helper method if it doesn't exist
+app.findRoutesWithinRadius = function(userLocation, radius, routes) {
+    const nearbyRoutes = [];
+    
+    routes.forEach(route => {
+        const allRoutePoints = [...route.data.waypoints, ...(route.data.secretWaypoints || [])];
+        
+        let minDistance = Infinity;
+        
+        allRoutePoints.forEach(point => {
+            const distance = this.calculateDistance(userLocation, point);
+            if (distance < minDistance) {
+                minDistance = distance;
+            }
+        });
+        
+        if (minDistance <= radius) {
+            nearbyRoutes.push({
+                routeName: route.name,  // Use route.name from the filtered array
+                routeData: route.data,
+                distance: minDistance
+            });
+        }
+    });
+    
+    // Sort by distance
+    return nearbyRoutes.sort((a, b) => a.distance - b.distance).slice(0, 5);
 };
 
 app.displayNearestMainRoutes = function(routes) {
@@ -1927,6 +1886,9 @@ app.displayNearestMainRoutes = function(routes) {
         `;
     });
     
-    document.getElementById('route-options').innerHTML = html;
-    document.getElementById('route-options').style.display = 'block';
+    const routeOptions = document.getElementById('route-options');
+    if (routeOptions) {
+        routeOptions.innerHTML = html;
+        routeOptions.style.display = 'block';
+    }
 };
