@@ -22,6 +22,7 @@
     <div class="location-buttons">
         <button class="location-btn" onclick="app.useMyLocationWithRoutes('start', event)">📍 Use My Location (Start)</button>
         <button class="location-btn" onclick="app.useMyLocationNoRoutes('end', event)">📍 Use My Location (End)</button>
+        <button class="location-btn" id="mapClickToggle" onclick="app.toggleMapClick()">🗺️ Set Destination by Map Click</button>
     </div>
     
     <div class="input-with-suggestions">
@@ -54,34 +55,6 @@
         
         <div id="route-details" class="route-details" style="display: none;"></div>
         
-    </div>
-    
-    <div class="legend">
-        <h4 style="margin-top: 0;">Jeep Route Colors</h4>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #ffeb3b; border-color: #fbc02d;"></div>
-            <span>Yellow Routes</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #f44336; border-color: #d32f2f;"></div>
-            <span>Red Routes</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #ffffff; border-color: #bdbdbd;"></div>
-            <span>White Routes</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #ff9800; border-color: #f57c00;"></div>
-            <span>Orange Routes</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #4caf50; border-color: #388e3c;"></div>
-            <span>Green Routes</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #2196f3; border-color: #1976d2;"></div>
-            <span>Blue Routes</span>
-        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
