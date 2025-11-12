@@ -19,7 +19,19 @@ body {
     left: 0;
     z-index: 1;
 }
-
+.leaflet-bar > a:link {
+    height: 40px;
+    width: 40px;
+    padding: 5px 10px;
+    color: black;
+    font-size: 30px;
+}
+.leaflet-control-scale-line{
+    display: inline-flexbox;
+    bottom: 10px;
+    left: 10px;
+    font-size: 15px;
+}
 .sidebar {
     position: absolute;
     top: 10px;
@@ -49,7 +61,7 @@ body {
 
 .toggle-btn {
   position: absolute;
-  top: 20px;
+  top: 350px;
   right: 400px;
   background-color: white;
   color: black;
@@ -64,7 +76,7 @@ body {
 }
 
 .toggle-btn:hover {
-  background-color: white;
+  box-shadow: 0 4px 8px rgba(14, 17, 20, 0.64);
 }
 
 .sidebar-toggle:checked + .toggle-btn {
@@ -162,32 +174,6 @@ body {
     border-bottom: none;
 }
 
-.legend {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    z-index: 1000;
-    max-width: 250px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin: 5px 0;
-}
-
-.legend-color {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-    border: 2px solid;
-    border-radius: 4px;
-}
-
 .loading {
     display: none;
     text-align: center;
@@ -251,8 +237,8 @@ body {
 }
 
 .route-details {
-    margin-top: 15px;
-    padding: 20px;
+    margin-top: 10px;
+    padding: 15px;
     background: #e8f5e8;
     border-radius: 8px;
     font-size: 0.9em;
@@ -460,10 +446,6 @@ body {
         border-radius: 0 0 6px 6px;
     }
     
-    .legend {
-        max-width: 200px;
-        font-size: 0.9em;
-    }
 }
 
 .route-type-badge {
@@ -624,39 +606,51 @@ body {
     border: 2px dashed #ffb74d;
 }
 
-.route-leg {
-    padding: 10px;
-    margin: 8px 0;
-    background: white;
-    border-radius: 6px;
-    border-left: 4px solid #4caf50;
+.route-timeline {
+  margin: 8px 0;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #4caf50;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.route-leg {    
+  font-size: 14px;
+  color: black;
+  line-height: 1;
+  padding: 12px;
+  
+
 }
 
-.transfer-point {
-    padding: 8px;
-    margin: 5px 0;
-    background: #e3f2fd;
-    border-radius: 4px;
-    border-left: 3px solid #2196f3;
-    font-weight: bold;
+.route-step {
+  position: relative;
+  padding: 5px 0;
 }
 
-.transfer-route {
-    background: #fff3e0;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    border: 2px dashed #ffb74d;
+.arrow {
+  margin-right: 7px;
+  color: black;
+  font-size: 20px;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 
-.route-leg {
-    padding: 12px;
-    margin: 8px 0;
-    background: white;
-    border-radius: 6px;
-    border-left: 4px solid #4caf50;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.leg-walk {
+    margin-left: 3px;
 }
+
+.leg-jeep {
+    margin-left: 3px;
+}
+
+.transfer .step-content {
+  background-color: #f7e1a1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: bold;
+  display: inline-block;
+}
+
 
 .transfer-point {
     padding: 10px;
@@ -731,21 +725,6 @@ body {
 
 .search-radius-circle {
     animation: pulse 2s infinite;
-}
-
-.tricycle-option {
-    padding: 15px;
-    margin: 10px 0;
-    background: #fff3e0;
-    border-radius: 8px;
-    border: 2px solid #ffb74d;
-    border-left: 6px solid #ff9800;
-}
-
-.tricycle-marker {
-    font-size: 20px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
 }
 
 /* Enhanced Boarding Validation Styles */

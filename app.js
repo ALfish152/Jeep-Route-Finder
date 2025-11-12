@@ -1876,13 +1876,32 @@ formatTransferOption(option, index) {
                 <span class="confidence-badge">🟡</span>
             </div>
             <div class="route-details">
+            <div class="route-timeline">
                 <div class="route-leg">
-                    <span class="leg-walk">🚶 ${Math.round(option.startWalk.distance)}m (${option.startWalk.time}min)</span>
-                    → <span class="leg-jeep">🚍 ${option.routeNames[0]} (${option.routeTimes[0]}min)</span>
-                    → <span class="leg-transfer">🔄 Transfer (${option.transfer.walkTime}min)</span>
-                    → <span class="leg-jeep">🚍 ${option.routeNames[1]} (${option.routeTimes[1]}min)</span>
-                    → <span class="leg-walk">🚶 ${Math.round(option.endWalk.distance)}m (${option.endWalk.time}min)</span>
+                    <div class="route-step">
+                    <span class="arrow">→</span>
+                    <span class="leg-walk">🚶 ${Math.round(option.startWalk.distance)}m (${option.startWalk.time}min)<br></span>
+                    </div>
+                    <div class="route-step">
+                    <span class="arrow">→</span>
+                    <span class="leg-jeep">🚍 ${option.routeNames[0]} (${option.routeTimes[0]}min)<br></span>
+                    </div>
+                    <div class="route-step transfer">
+                    <div class="route-step">
+                    <span class="arrow">→</span>
+                    <span class="leg-transfer">🔄 Transfer (${option.transfer.walkTime}min)<br></span>
+                    </div>
+                    </div>
+                    <div class="route-step">
+                    <span class="arrow">→</span>
+                    <span class="leg-jeep">🚍 ${option.routeNames[1]} (${option.routeTimes[1]}min)<br></span>
+                    </div>
+                    <div class="route-step">
+                    <span class="arrow">→</span>
+                    <span class="leg-walk">🚶 ${Math.round(option.endWalk.distance)}m (${option.endWalk.time}min)</span>
+                    </div>
                 </div>
+            </div>
                 <div class="route-summary">
                     🕐 Total: ${option.totalTime}min • 💰 ₱${option.totalFare}
                 </div>
