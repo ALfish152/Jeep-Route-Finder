@@ -946,3 +946,28 @@ body {
         font-size: 0.75em;
     }
 }
+
+/* Enhanced Landmark Markers */
+.primary-landmark-marker {
+    font-size: 35px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.8));
+    z-index: 1000;
+}
+
+.secondary-landmark-marker {
+    font-size: 25px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.6));
+    opacity: 0.8;
+    z-index: 500;
+}
+
+/* Popup styling enhancements */
+.leaflet-popup-content {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.leaflet-popup-content b {
+    color: #2c3e50;
+}

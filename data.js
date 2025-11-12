@@ -3,7 +3,7 @@ const jeepneyRoutes = {
     "Batangas - Alangilan": {
         id: "route_001",
         type: "main",
-        color: "#ffeb3b",
+        color: "#7c7000ff",
         waypoints: [
             [13.790637338793799, 121.06163057927537],
             [13.790637338793799, 121.06163057927537]
@@ -32,7 +32,7 @@ const jeepneyRoutes = {
     "Batangas - Balagtas": {
         id: "route_002",
         type: "main",
-        color: "#ffeb3b",
+        color: "#928400ff",
         waypoints: [
             [13.790637338793799, 121.06163057927537],
             [13.790637338793799, 121.06163057927537]
@@ -67,7 +67,7 @@ const jeepneyRoutes = {
     "Batangas - Sta. Clara/Pier": {
         id: "route_003",
         type: "secondary",
-        color: "#ffeb3b",
+        color: "#887a00ff",
         waypoints: [
             [13.753880755680488, 121.04497404515388],
             [13.753880755680488, 121.04497404515388]
@@ -90,7 +90,7 @@ const jeepneyRoutes = {
     "Batangas - Capitolio-Hospital": {
         id: "route_004",
         type: "special",
-        color: "#ffffffff",
+        color: "#000000ff",
         waypoints: [
             [13.756637783283924, 121.0699473307309],
             [13.756637783283924, 121.0699473307309]
@@ -119,7 +119,7 @@ const jeepneyRoutes = {
     "Batangas - Dagatan (Taysan)": {
         id: "route_005",
         type: "special",
-        color: "#ff9800",
+        color: "#aa6600ff",
         waypoints: [
             [13.758439262187531, 121.07573705541634],
             [13.760958656129352, 121.07368870722586]
@@ -144,7 +144,7 @@ const jeepneyRoutes = {
     "Batangas - Lipa": {
         id: "route_006",
         type: "main",
-        color: "#f44336",
+        color: "#970a00ff",
         waypoints: [
             [13.799995363038306, 121.07213480822213],
             [13.799995363038306, 121.07213480822213]
@@ -165,7 +165,7 @@ const jeepneyRoutes = {
     "Batangas - Soro Soro": {
         id: "route_007",
         type: "main",
-        color: "#f44336",
+        color: "#ad0c00ff",
         waypoints: [
             [13.792187229460001, 121.08365311976097],
             [13.792187229460001, 121.08365311976097]
@@ -194,7 +194,7 @@ const jeepneyRoutes = {
     "Batangas - Balete": {
         id: "route_008",
         type: "main",
-        color: "#f44336",
+        color: "#be0d00ff",
         waypoints: [
             [13.798900662751677, 121.07162479028655],
             [13.798900662751677, 121.07162479028655]
@@ -218,7 +218,7 @@ const jeepneyRoutes = {
     "Batangas - Libjo/San-Isidro/Tabangao": {
         id: "route_009",
         type: "feeder",
-        color: "#4caf50",
+        color: "#157a19ff",
         waypoints: [
             [13.734479022569024, 121.073782854938],
             [13.734479022569024, 121.073782854938]
@@ -246,7 +246,7 @@ const jeepneyRoutes = {
     "Batangas - Bauan": {
         id: "route_010",
         type: "main",
-        color: "#2196f3",
+        color: "#075fa7ff",
         waypoints: [
             [13.774994201990486, 121.04566475394208],
             [13.774994201990486, 121.04566475394208]

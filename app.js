@@ -22,71 +22,72 @@ class BatangasJeepneySystem {
     }
 
     // ENHANCED: Initialize boarding zones for each route
-    initializeBoardingZones() {
-        return {
-            "Batangas - Alangilan": {
-                primary: ["Batangas City Grand Terminal", "SM Hypermarket", "BatStateU-Alangilan"],
-                secondary: ["Don Ramos", "UB/Hilltop", "Lawas"],
-                restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
-            },
-            "Batangas - Balagtas": {
-                primary: ["Batangas City Grand Terminal", "SM Hypermarket"],
-                secondary: ["Don Ramos", "UB/Hilltop", "Lawas", "Traders/Bay Mall"],
-                restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
-            },
-            "Batangas - Sta. Clara/Pier": {
-                primary: ["Sta. Clara Elementary School", "Pier/Port of Batangas", "Luma/Old Market"],
-                secondary: ["Bago/New Public Market", "Plaza Mabini"],
-                restricted: ["Batangas City Grand Terminal", "SM Hypermarket", "BatStateU-Alangilan"]
-            },
-            "Batangas - Capitolio-Hospital": {
-                primary: ["SM City Batangas", "Batangas Medical Center", "Plaza Mabini"],
-                secondary: ["Golden Gate College", "Citimart", "LPU - Batangas"],
-                restricted: ["Batangas City Grand Terminal", "Sta. Clara Elementary School"]
-            },
-            "Batangas - Dagatan (Taysan)": {
-                primary: ["Dagatan Jeepney Terminal", "Total Gulod", "LPU - Riverside"],
-                secondary: ["SM City Batangas", "Batangas Medical Center"],
-                restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
-            },
-            "Batangas - Lipa": {
-                primary: ["Batangas City Grand Terminal", "Diversion"],
-                secondary: ["Waltermart/Lawas", "Philippine Ports Authority"],
-                restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
-            },
-            "Batangas - Soro Soro": {
-                primary: ["Batangas City Grand Terminal", "SM Hypermarket"],
-                secondary: ["Don Ramos", "UB/Hilltop", "Lawas"],
-                restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
-            },
-            "Batangas - Balete": {
-                primary: ["Batangas City Grand Terminal", "Diversion"],
-                secondary: ["Waltermart/Lawas", "Philippine Ports Authority"],
-                restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
-            },
-            "Batangas - Libjo/San-Isidro/Tabangao": {
-                primary: ["Tierra Verde Subdivision", "SM City Batangas"],
-                secondary: ["Plaza Mabini", "Golden Gate College"],
-                restricted: ["Batangas City Grand Terminal", "Sta. Clara Elementary School"]
-            },
-            "Batangas - Bauan": {
-                primary: ["Batangas City Grand Terminal", "Diversion"],
-                secondary: ["Waltermart/Lawas", "Philippine Ports Authority"],
-                restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
-            }
-        };
-    }
+initializeBoardingZones() {
+    return {
+        "Batangas - Alangilan": {
+            primary: ["Batangas City Grand Terminal", "SM Hypermarket", "BatStateU-Alangilan"],
+            secondary: ["Don Ramos", "UB/Hilltop", "Lawas", "Waltermart"],
+            restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
+        },
+        "Batangas - Balagtas": {
+            primary: ["Batangas City Grand Terminal", "SM Hypermarket"],
+            secondary: ["Don Ramos", "UB/Hilltop", "Lawas", "Traders/Bay Mall", "Waltermart"],
+            restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
+        },
+        "Batangas - Sta. Clara/Pier": {
+            primary: ["Sta. Clara Elementary School", "Pier/Port of Batangas", "Luma/Old Market"],
+            secondary: ["Bago/New Public Market", "Plaza Mabini"],
+            restricted: ["Batangas City Grand Terminal", "SM Hypermarket", "BatStateU-Alangilan"]
+        },
+        "Batangas - Capitolio-Hospital": {
+            primary: ["SM City Batangas", "Batangas Medical Center", "Plaza Mabini"],
+            secondary: ["Golden Gate College", "Citimart", "LPU - Batangas", "Waltermart"],
+            restricted: ["Batangas City Grand Terminal", "Sta. Clara Elementary School"]
+        },
+        "Batangas - Dagatan (Taysan)": {
+            primary: ["Dagatan Jeepney Terminal", "Total Gulod", "LPU - Riverside"],
+            secondary: ["SM City Batangas", "Batangas Medical Center"],
+            restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
+        },
+        "Batangas - Lipa": {
+            primary: ["Batangas City Grand Terminal", "Diversion"],
+            secondary: ["Waltermart", "Lawas", "Philippine Ports Authority"],
+            restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
+        },
+        "Batangas - Soro Soro": {
+            primary: ["Batangas City Grand Terminal", "SM Hypermarket"],
+            secondary: ["Don Ramos", "UB/Hilltop", "Lawas", "Waltermart"],
+            restricted: ["Sta. Clara Elementary School", "Pier/Port of Batangas"]
+        },
+        "Batangas - Balete": {
+            primary: ["Batangas City Grand Terminal", "Diversion"],
+            secondary: ["Waltermart", "Lawas", "Philippine Ports Authority"],
+            restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
+        },
+        "Batangas - Libjo/San-Isidro/Tabangao": {
+            primary: ["Tierra Verde Subdivision", "SM City Batangas"],
+            secondary: ["Plaza Mabini", "Golden Gate College"],
+            restricted: ["Batangas City Grand Terminal", "Sta. Clara Elementary School"]
+        },
+        "Batangas - Bauan": {
+            primary: ["Batangas City Grand Terminal", "Diversion"],
+            secondary: ["Waltermart", "Lawas", "Philippine Ports Authority"],
+            restricted: ["Sta. Clara Elementary School", "UB/Hilltop"]
+        }
+    };
+}
 
-    // ENHANCED: Initialize invalid route combinations
-    initializeInvalidCombinations() {
-        return {
-            "UB/Hilltop": ["Batangas - Sta. Clara/Pier", "Batangas - Libjo/San-Isidro/Tabangao"],
-            "Sta. Clara Elementary School": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Lipa", "Batangas - Soro Soro", "Batangas - Balete", "Batangas - Bauan"],
-            "BatStateU-Alangilan": ["Batangas - Sta. Clara/Pier"],
-            "Batangas City Grand Terminal": ["Batangas - Sta. Clara/Pier"],
-            "SM Hypermarket": ["Batangas - Sta. Clara/Pier"]
-        };
-    }
+// ENHANCED: Initialize invalid route combinations
+initializeInvalidCombinations() {
+    return {
+        "UB/Hilltop": ["Batangas - Sta. Clara/Pier", "Batangas - Libjo/San-Isidro/Tabangao"],
+        "Sta. Clara Elementary School": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Lipa", "Batangas - Soro Soro", "Batangas - Balete", "Batangas - Bauan"],
+        "BatStateU-Alangilan": ["Batangas - Sta. Clara/Pier"],
+        "Batangas City Grand Terminal": ["Batangas - Sta. Clara/Pier"],
+        "SM Hypermarket": ["Batangas - Sta. Clara/Pier"],
+        "Waltermart": ["Batangas - Sta. Clara/Pier"] // Add Waltermart restriction
+    };
+}
 
     // ENHANCED: Check if a route can be boarded from a specific location
     canBoardRouteFromLocation(locationName, routeName) {
@@ -171,39 +172,176 @@ class BatangasJeepneySystem {
     }
 
     initializeMap() {
-        const mapElement = document.getElementById('map');
-        if (mapElement) {
-            mapElement.style.height = '100vh';
-            mapElement.style.width = '100%';
+    const mapElement = document.getElementById('map');
+    if (mapElement) {
+        mapElement.style.height = '100vh';
+        mapElement.style.width = '100%';
+    }
+    
+    this.map = L.map('map').setView([13.7565, 121.0583], 13);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(this.map);
+
+    // Initialize empty landmarks layer (will be populated when routes are selected)
+    this.landmarksLayer = L.layerGroup().addTo(this.map);
+    
+    L.control.scale().addTo(this.map);
+}
+
+// ENHANCED: Show landmarks with priority for start and destination
+showLandmarksForRoutes(routeNames, startLocation = null, endLocation = null) {
+    try {
+        // Clear all existing landmarks
+        this.landmarksLayer.clearLayers();
+        
+        if (!routeNames || routeNames.length === 0) {
+            return;
         }
         
-        this.map = L.map('map').setView([13.7565, 121.0583], 13);
+        // Get all landmarks connected to the active routes
+        const connectedLandmarks = new Set();
+        const primaryLandmarks = new Set(); // Start and destination
+        const secondaryLandmarks = new Set(); // Other connected landmarks
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(this.map);
-
-        // Add key locations to map
-        this.locationsLayer = L.layerGroup().addTo(this.map);
-        Object.keys(allStops).forEach(location => {
-            L.marker(allStops[location])
-                .bindPopup(`<b>${location}</b>`)
-                .addTo(this.locationsLayer);
+        routeNames.forEach(routeName => {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                // Get boarding zones for this route
+                const boardingZones = this.routeBoardingZones[routeName];
+                if (boardingZones) {
+                    // Add primary and secondary boarding points
+                    boardingZones.primary.forEach(landmark => connectedLandmarks.add(landmark));
+                    boardingZones.secondary.forEach(landmark => connectedLandmarks.add(landmark));
+                }
+                
+                // Also add landmarks that are near the route waypoints
+                const allRoutePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+                Object.keys(allStops).forEach(landmark => {
+                    const landmarkCoords = allStops[landmark];
+                    const distance = this.findDistanceToPoints(landmarkCoords, allRoutePoints).distance;
+                    if (distance <= 200) { // Within 200 meters of route
+                        connectedLandmarks.add(landmark);
+                    }
+                });
+            }
         });
+        
+        // Identify start and destination landmarks
+        if (startLocation && !startLocation.includes('My Location')) {
+            const matchedStart = this.matchLocationWithLandmarks(startLocation);
+            if (matchedStart && connectedLandmarks.has(matchedStart)) {
+                primaryLandmarks.add(matchedStart);
+                connectedLandmarks.delete(matchedStart); // Remove from secondary
+            }
+        }
+        
+        if (endLocation && !endLocation.includes('My Location')) {
+            const matchedEnd = this.matchLocationWithLandmarks(endLocation);
+            if (matchedEnd && connectedLandmarks.has(matchedEnd)) {
+                primaryLandmarks.add(matchedEnd);
+                connectedLandmarks.delete(matchedEnd); // Remove from secondary
+            }
+        }
+        
+        // Add primary landmarks (start and destination) with prominent styling
+        primaryLandmarks.forEach(landmark => {
+            if (allStops[landmark]) {
+                L.marker(allStops[landmark], {
+                    icon: L.divIcon({
+                        className: 'primary-landmark-marker',
+                        html: '⭐',
+                        iconSize: [35, 35],
+                        iconAnchor: [17, 35]
+                    })
+                })
+                .bindPopup(`
+                    <div style="text-align: center;">
+                        <b style="color: #e74c3c; font-size: 1.1em;">${landmark}</b><br>
+                        <em>⭐ Journey ${primaryLandmarks.size > 1 ? 
+                            (Array.from(primaryLandmarks)[0] === landmark ? 'Start' : 'Destination') : 
+                            'Point'}</em><br>
+                        <small>Connected to: ${Array.from(routeNames).join(', ')}</small>
+                    </div>
+                `)
+                .addTo(this.landmarksLayer);
+            }
+        });
+        
+        // Add secondary landmarks (other connected landmarks) with subtle styling
+        connectedLandmarks.forEach(landmark => {
+            if (allStops[landmark]) {
+                L.marker(allStops[landmark], {
+                    icon: L.divIcon({
+                        className: 'secondary-landmark-marker',
+                        html: '📍',
+                        iconSize: [25, 25],
+                        iconAnchor: [12, 25]
+                    })
+                })
+                .bindPopup(`
+                    <div style="text-align: center;">
+                        <b>${landmark}</b><br>
+                        <em>📍 Route Stop</em><br>
+                        <small>Connected to: ${Array.from(routeNames).join(', ')}</small>
+                    </div>
+                `)
+                .addTo(this.landmarksLayer);
+            }
+        });
+        
+        console.log(`Showing ${primaryLandmarks.size} primary and ${connectedLandmarks.size} secondary landmarks for ${routeNames.length} routes`);
+        
+    } catch (error) {
+        console.error('Error showing landmarks:', error);
+    }
+}
 
-        L.control.scale().addTo(this.map);
+// Helper method to match input location with known landmarks
+matchLocationWithLandmarks(locationInput) {
+    const cleanInput = locationInput.toLowerCase().trim();
+    
+    // Direct match
+    for (const landmark of Object.keys(allStops)) {
+        if (landmark.toLowerCase() === cleanInput) {
+            return landmark;
+        }
+    }
+    
+    // Partial match
+    for (const landmark of Object.keys(allStops)) {
+        if (landmark.toLowerCase().includes(cleanInput) || cleanInput.includes(landmark.toLowerCase())) {
+            return landmark;
+        }
+    }
+    
+    return null;
+}
+
+    // Helper method to find distance to points
+    findDistanceToPoints(coords, points) {
+        let minDistance = Infinity;
+        let closestPoint = null;
+        let closestIndex = -1;
+        
+        points.forEach((point, index) => {
+            const distance = this.calculateDistance(coords, point);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestPoint = point;
+                closestIndex = index;
+            }
+        });
+        
+        return {
+            distance: minDistance,
+            point: closestPoint,
+            index: closestIndex
+        };
     }
 
     initializeEventListeners() {
-        // Search functionality
-        document.getElementById('searchBox').addEventListener('input', (e) => {
-            this.filterRoutes(e.target.value.toLowerCase());
-        });
-
-        // Time slider
-        document.getElementById('timeSlider').addEventListener('input', (e) => {
-            this.updateTimeDisplay(parseInt(e.target.value));
-        });
 
         // Sidebar toggle
         document.getElementById('sidebarToggle').addEventListener('click', () => {
@@ -252,9 +390,6 @@ class BatangasJeepneySystem {
 
     initializeUI() {
         this.populateRoutesList();
-        this.updateTimeDisplay(12);
-        this.updateFavoritesList();
-        this.updateStatistics();
     }
 
     formatFare(fareStr) {
@@ -303,33 +438,6 @@ class BatangasJeepneySystem {
         document.getElementById(suggestionsId).style.display = 'none';
     }
 
-    filterRoutes(searchTerm) {
-        const routeItems = document.querySelectorAll('.route-item');
-        
-        routeItems.forEach(item => {
-            const routeName = item.getAttribute('data-route').toLowerCase();
-            if (routeName.includes(searchTerm)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    }
-
-    updateTimeDisplay(hour) {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour % 12 || 12;
-        document.getElementById('timeDisplay').textContent = `${displayHour}:00 ${period}`;
-        
-        if (this.activeRoutes.length > 0) {
-            this.activeRoutes.forEach(routeName => {
-                const routeData = jeepneyRoutes[routeName];
-                if (routeData) {
-                    routeManager.createSnappedRoute(routeName, routeData);
-                }
-            });
-        }
-    }
 
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
@@ -339,96 +447,42 @@ class BatangasJeepneySystem {
         toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '☰' : '✕';
     }
 
-    populateRoutesList() {
-        const routesList = document.getElementById('routes-list');
-        routesList.innerHTML = '';
+populateRoutesList() {
+    const routesList = document.getElementById('routes-list');
+    routesList.innerHTML = '';
+    
+    Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+        const routeItem = document.createElement('div');
+        routeItem.className = 'route-item';
+        routeItem.setAttribute('data-route', routeName);
         
-        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-            const routeItem = document.createElement('div');
-            routeItem.className = 'route-item';
-            routeItem.setAttribute('data-route', routeName);
-            
-            let colorName = "Other";
-            if (routeData.color === "#ffeb3b") colorName = "Yellow";
-            else if (routeData.color === "#f44336") colorName = "Red";
-            else if (routeData.color === "#ffffff") colorName = "White";
-            else if (routeData.color === "#ff9800") colorName = "Orange";
-            else if (routeData.color === "#4caf50") colorName = "Green";
-            else if (routeData.color === "#2196f3") colorName = "Blue";
-            
-            // ENHANCED: Add boarding information
-            const startLocation = document.getElementById('startLocation').value;
-            let boardingInfo = '';
-            if (startLocation && !startLocation.includes('My Location')) {
-                const recommendation = this.getBoardingRecommendation(startLocation, routeName);
-                boardingInfo = `<div class="boarding-info ${recommendation.type}">${recommendation.message}</div>`;
-            }
-            
-            routeItem.innerHTML = `
-                <div style="font-weight: bold;">${routeName}</div>
-                <div class="route-info">
-                    <span class="route-type-badge type-${routeData.type}">${routeData.type}</span>
-                    <span style="background: ${routeData.color}; padding: 2px 6px; border-radius: 3px; color: ${routeData.color === '#ffffff' ? 'black' : 'white'}; font-size: 0.7em;">${colorName}</span><br>
-                    Frequency: ${routeData.frequency}<br>
-                    Fare: ${this.formatFare(routeData.fare)} | Stops: ${routeData.stops}
-                    ${boardingInfo}
-                </div>
-            `;
-            
-            routeItem.addEventListener('click', () => {
-                const startLocation = document.getElementById('startLocation').value;
-                if (startLocation && !startLocation.includes('My Location')) {
-                    const recommendation = this.getBoardingRecommendation(startLocation, routeName);
-                    if (!recommendation.valid) {
-                        this.showNotification(recommendation.message, 'error');
-                        return;
-                    }
-                }
-                routeManager.createSnappedRoute(routeName, routeData);
-            });
-            
-            routesList.appendChild(routeItem);
+        let colorName = "Other";
+        if (routeData.color === "#ffeb3b") colorName = "Yellow";
+        else if (routeData.color === "#f44336") colorName = "Red";
+        else if (routeData.color === "#ffffff") colorName = "White";
+        else if (routeData.color === "#ff9800") colorName = "Orange";
+        else if (routeData.color === "#4caf50") colorName = "Green";
+        else if (routeData.color === "#2196f3") colorName = "Blue";
+        
+        // REMOVED: Boarding information since we don't have start location context here
+        routeItem.innerHTML = `
+            <div style="font-weight: bold;">${routeName}</div>
+            <div class="route-info">
+                <span class="route-type-badge type-${routeData.type}">${routeData.type}</span>
+                <span style="background: ${routeData.color}; padding: 2px 6px; border-radius: 3px; color: ${routeData.color === '#ffffff' ? 'black' : 'white'}; font-size: 0.7em;">${colorName}</span><br>
+                Frequency: ${routeData.frequency}<br>
+                Fare: ${this.formatFare(routeData.fare)} | Stops: ${routeData.stops}
+            </div>
+        `;
+        
+        routeItem.addEventListener('click', () => {
+            // REMOVED: Boarding validation since we don't have start location context
+            routeManager.createSnappedRoute(routeName, routeData);
         });
-    }
-
-    updateFavoritesList() {
-        const favoritesList = document.getElementById('favorites-list');
-        const favorites = JSON.parse(localStorage.getItem('favoriteRoutes') || '[]');
         
-        if (favorites.length === 0) {
-            favoritesList.innerHTML = '<p style="color: #666; font-style: italic;">No favorite routes yet. Click on a route and "Add to Favorites".</p>';
-            return;
-        }
-        
-        favoritesList.innerHTML = '';
-        favorites.forEach(routeName => {
-            const routeData = jeepneyRoutes[routeName];
-            if (routeData) {
-                const favoriteItem = document.createElement('div');
-                favoriteItem.className = 'favorite-item';
-                favoriteItem.innerHTML = `
-                    <div style="font-weight: bold;">${routeName}</div>
-                    <div class="route-info">${routeData.description}</div>
-                `;
-                favoriteItem.addEventListener('click', () => {
-                    routeManager.createSnappedRoute(routeName, routeData);
-                });
-                favoritesList.appendChild(favoriteItem);
-            }
-        });
-    }
-
-    updateStatistics() {
-        const routes = Object.values(jeepneyRoutes);
-        document.getElementById('total-routes').textContent = routes.length;
-        document.getElementById('active-routes').textContent = routes.length;
-        
-        const mainRoutes = routes.filter(r => r.type === 'main').length;
-        const feederRoutes = routes.filter(r => r.type === 'feeder').length;
-        
-        document.getElementById('main-routes').textContent = mainRoutes;
-        document.getElementById('feeder-routes').textContent = feederRoutes;
-    }
+        routesList.appendChild(routeItem);
+    });
+}
 
     // Improved location handling
     async useMyLocation(field, event) {
@@ -943,69 +997,64 @@ class RouteManager {
     }
 
     async createSnappedRoute(routeName, routeData) {
-        const hour = parseInt(document.getElementById('timeSlider').value);
+    const hour = 12; // Use fixed hour since time slider is removed
+    
+    try {
+        document.getElementById('loading').style.display = 'block';
         
-        try {
-            document.getElementById('loading').style.display = 'block';
-            
-            const route = await this.getRouteWithETA(
-                routeData.waypoints, 
-                routeData.secretWaypoints || [], 
-                hour
-            );
-            
-            const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-            
-            if (this.routeLayers[routeName]) {
-                if (this.routeLayers[routeName].route && app.map.hasLayer(this.routeLayers[routeName].route)) {
-                    app.map.removeLayer(this.routeLayers[routeName].route);
-                }
-                if (this.routeLayers[routeName].waypoints && app.map.hasLayer(this.routeLayers[routeName].waypoints)) {
-                    app.map.removeLayer(this.routeLayers[routeName].waypoints);
-                }
+        const route = await this.getRouteWithETA(
+            routeData.waypoints, 
+            routeData.secretWaypoints || [], 
+            hour
+        );
+        
+        const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+        
+        if (this.routeLayers[routeName]) {
+            if (this.routeLayers[routeName].route && app.map.hasLayer(this.routeLayers[routeName].route)) {
+                app.map.removeLayer(this.routeLayers[routeName].route);
             }
-            
-            const routeLayer = L.polyline(latlngs, {
-                color: routeData.color,
-                weight: 6,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round'
-            }).addTo(app.map);
-            
-            const waypointsLayer = L.layerGroup().addTo(app.map);
-            routeData.waypoints.forEach((waypoint, index) => {
-                L.marker(waypoint)
-                    .bindPopup(`
-                        <b>${index === 0 ? 'Start' : index === routeData.waypoints.length - 1 ? 'End' : 'Stop ' + index}</b><br>
-                        <b>Route:</b> ${routeName}<br>
-                        <b>Type:</b> ${routeData.type}
-                    `)
-                    .addTo(waypointsLayer);
-            });
-                        
-            this.routeLayers[routeName] = {
-                route: routeLayer,
-                waypoints: waypointsLayer,
-                data: routeData
-            };
-            
-            if (!this.activeRoutes.includes(routeName)) {
-                this.activeRoutes.push(routeName);
+            if (this.routeLayers[routeName].waypoints && app.map.hasLayer(this.routeLayers[routeName].waypoints)) {
+                app.map.removeLayer(this.routeLayers[routeName].waypoints);
             }
-            
-            app.map.fitBounds(routeLayer.getBounds());
-            
-            this.updateRouteDetails(routeName, routeData, route, hour);
-            this.updateActiveRoute(routeName);
-            
-        } catch (error) {
-            console.error('Error creating route:', error);
-            alert('Error displaying route. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
         }
+        
+        const routeLayer = L.polyline(latlngs, {
+            color: routeData.color,
+            weight: 6,
+            opacity: 0.8,
+            lineCap: 'round',
+            lineJoin: 'round'
+        }).addTo(app.map);
+        
+        this.routeLayers[routeName] = {
+            route: routeLayer,
+            waypoints: null,
+            data: routeData
+        };
+        
+        if (!this.activeRoutes.includes(routeName)) {
+            this.activeRoutes.push(routeName);
+        }
+        
+        app.map.fitBounds(routeLayer.getBounds());
+        
+        // Show landmarks for this route
+        const startLocation = document.getElementById('startLocation').value;
+        const endLocation = document.getElementById('endLocation').value;
+        app.showLandmarksForRoutes([routeName], startLocation, endLocation);
+
+        this.updateRouteDetails(routeName, routeData, route, hour);
+        this.updateActiveRoute(routeName);
+        
+
+    } catch (error) {
+        console.error('Error creating route:', error);
+        alert('Error displaying route. Please try again.');
+    } finally {
+        document.getElementById('loading').style.display = 'none';
     }
+}
 
     async getRouteWithETA(waypoints, secretWaypoints, hour) {
         try {
@@ -1064,6 +1113,9 @@ class RouteManager {
         
         this.routeLayers = {};
         this.activeRoutes = [];
+
+        // Clear landmarks when no routes are active
+        app.landmarksLayer.clearLayers();
         
         document.getElementById('route-details').style.display = 'none';
         document.querySelectorAll('.route-item').forEach(item => {
@@ -1073,59 +1125,64 @@ class RouteManager {
         console.log('All routes cleared silently');
     }
     
-    async showAllRoutes() {
-        this.clearAllRoutesSilently();
-        
-        const hour = parseInt(document.getElementById('timeSlider').value);
-        let routesLoaded = 0;
-        
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            for (const [routeName, routeData] of Object.entries(jeepneyRoutes)) {
-                try {
-                    const route = await this.getRouteWithETA(
-                        routeData.waypoints, 
-                        routeData.secretWaypoints || [], 
-                        hour
-                    );
-                    const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-                    
-                    const routeLayer = L.polyline(latlngs, {
-                        color: routeData.color,
-                        weight: 4,
-                        opacity: 0.6,
-                        lineCap: 'round'
-                    }).addTo(app.map);
-                    
-                    this.routeLayers[routeName] = {
-                        route: routeLayer,
-                        waypoints: null,
-                        data: routeData
-                    };
-                    
-                    this.activeRoutes.push(routeName);
-                    routesLoaded++;
-                    
-                } catch (error) {
-                    console.error(`Error showing route ${routeName}:`, error);
-                }
+async showAllRoutes() {
+    this.clearAllRoutesSilently();
+    
+    const hour = 12; // Use fixed hour since time slider is removed
+    let routesLoaded = 0;
+    
+    document.getElementById('loading').style.display = 'block';
+    
+    try {
+        for (const [routeName, routeData] of Object.entries(jeepneyRoutes)) {
+            try {
+                const route = await this.getRouteWithETA(
+                    routeData.waypoints, 
+                    routeData.secretWaypoints || [], 
+                    hour
+                );
+                const latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                
+                const routeLayer = L.polyline(latlngs, {
+                    color: routeData.color,
+                    weight: 4,
+                    opacity: 0.6,
+                    lineCap: 'round'
+                }).addTo(app.map);
+                
+                this.routeLayers[routeName] = {
+                    route: routeLayer,
+                    waypoints: null,
+                    data: routeData
+                };
+                
+                this.activeRoutes.push(routeName);
+                routesLoaded++;
+                
+            } catch (error) {
+                console.error(`Error showing route ${routeName}:`, error);
             }
-            
-            if (routesLoaded > 0) {
-                app.showNotification(`✅ Showing all ${routesLoaded} jeepney routes!`, 'success');
-            } else {
-                app.showNotification('❌ No routes could be loaded', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Error showing all routes:', error);
-            app.showNotification('❌ Error loading routes', 'error');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('route-details').style.display = 'none';
         }
+        
+        // Show landmarks for all routes
+        const startLocation = document.getElementById('startLocation').value;
+        const endLocation = document.getElementById('endLocation').value;
+        app.showLandmarksForRoutes(this.activeRoutes, startLocation, endLocation);
+        
+        if (routesLoaded > 0) {
+            app.showNotification(`✅ Showing all ${routesLoaded} jeepney routes!`, 'success');
+        } else {
+            app.showNotification('❌ No routes could be loaded', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error showing all routes:', error);
+        app.showNotification('❌ Error loading routes', 'error');
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('route-details').style.display = 'none';
     }
+}
 
     updateActiveRoute(routeName) {
         document.querySelectorAll('.route-item').forEach(item => {
@@ -1138,56 +1195,38 @@ class RouteManager {
     }
 
     updateRouteDetails(routeName, routeData, routeInfo, hour) {
-        const currentDetails = document.getElementById('route-details').innerHTML;
-        if (currentDetails.includes('Transfer Route')) {
-            return;
-        }
-        
-        const detailsDiv = document.getElementById('route-details');
-        const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
-        
-        const baseDuration = routeInfo.duration ? Math.round(routeInfo.duration / 60) : routeData.baseTime;
-        const traffic = this.getTrafficMultiplier(hour);
-        const trafficAdjustedTime = baseDuration * traffic.multiplier;
-        const stopTime = routeData.stops * 0.5;
-        const totalMinutes = Math.round(trafficAdjustedTime + stopTime);
-        
-        const trafficClass = `traffic-${traffic.level}`;
-        
-        // ENHANCED: Add boarding information
-        const startLocation = document.getElementById('startLocation').value;
-        let boardingInfo = '';
-        if (startLocation && !startLocation.includes('My Location')) {
-            const recommendation = app.getBoardingRecommendation(startLocation, routeName);
-            boardingInfo = `
-                <div class="boarding-details ${recommendation.type}">
-                    <strong>Boarding:</strong> ${recommendation.message}
-                </div>
-            `;
-        }
-        
-        detailsDiv.innerHTML = `
-            <h4>${routeName}</h4>
-            <p><strong>Description:</strong> ${routeData.description}</p>
-            <p><strong>Distance:</strong> ${distance} km</p>
-            <p><strong>Estimated Time:</strong> ${totalMinutes} minutes</p>
-            <p><strong>Traffic:</strong> <span class="traffic-indicator ${trafficClass}"></span>${traffic.level.toUpperCase()}</p>
-            <p><strong>Frequency:</strong> ${routeData.frequency}</p>
-            <p><strong>Fare:</strong> ${app.formatFare(routeData.fare)}</p>
-            <p><strong>Operator:</strong> ${routeData.operator}</p>
-            ${boardingInfo}
-            
-            <div style="margin-top: 15px;">
-                <button class="control-btn secondary" onclick="routeManager.saveFavoriteRoute('${routeName}')">
-                    ⭐ Add to Favorites
-                </button>
-                <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
-                    🗑️ Clear This Route
-                </button>
-            </div>
-        `;
-        detailsDiv.style.display = 'block';
+    const currentDetails = document.getElementById('route-details').innerHTML;
+    if (currentDetails.includes('Transfer Route')) {
+        return;
     }
+    
+    const detailsDiv = document.getElementById('route-details');
+    const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
+    
+    // Simplified ETA calculation without traffic simulation
+    const baseDuration = routeInfo.duration ? Math.round(routeInfo.duration / 60) : routeData.baseTime;
+    const stopTime = routeData.stops * 0.5;
+    const totalMinutes = Math.round(baseDuration + stopTime);
+    
+    // REMOVED: Traffic information
+    
+    detailsDiv.innerHTML = `
+        <h4>${routeName}</h4>
+        <p><strong>Description:</strong> ${routeData.description}</p>
+        <p><strong>Distance:</strong> ${distance} km</p>
+        <p><strong>Estimated Time:</strong> ${totalMinutes} minutes</p>
+        <p><strong>Frequency:</strong> ${routeData.frequency}</p>
+        <p><strong>Fare:</strong> ${app.formatFare(routeData.fare)}</p>
+        <p><strong>Operator:</strong> ${routeData.operator}</p>
+        
+        <div style="margin-top: 15px;">
+            <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
+                🗑️ Clear This Route
+            </button>
+        </div>
+    `;
+    detailsDiv.style.display = 'block';
+}
 
     getTrafficMultiplier(hour) {
         for (const [period, data] of Object.entries(TRAFFIC_PATTERNS)) {
@@ -1198,60 +1237,40 @@ class RouteManager {
         return TRAFFIC_PATTERNS.normal;
     }
 
-    saveFavoriteRoute(routeName) {
-        const favorites = JSON.parse(localStorage.getItem('favoriteRoutes') || '[]');
-        if (!favorites.includes(routeName)) {
-            favorites.push(routeName);
-            localStorage.setItem('favoriteRoutes', JSON.stringify(favorites));
-            app.updateFavoritesList();
-            alert(`Added ${routeName} to favorites!`);
-        } else {
-            alert(`${routeName} is already in your favorites!`);
-        }
-    }
-
     clearAllRoutes() {
-        console.log('Clearing all routes...');
+    console.log('Clearing all routes...');
+    
+    app.clearAllWalkingRoutes();
+    
+    Object.keys(this.routeLayers).forEach(routeName => {
+        const layerGroup = this.routeLayers[routeName];
         
-        app.clearAllWalkingRoutes();
-        
-        Object.keys(this.routeLayers).forEach(routeName => {
-            const layerGroup = this.routeLayers[routeName];
-            
-            if (layerGroup.route) {
-                try {
-                    if (app.map.hasLayer(layerGroup.route)) {
-                        app.map.removeLayer(layerGroup.route);
-                    }
-                } catch (error) {
-                    console.warn(`Error removing route layer for ${routeName}:`, error);
+        if (layerGroup.route) {
+            try {
+                if (app.map.hasLayer(layerGroup.route)) {
+                    app.map.removeLayer(layerGroup.route);
                 }
+            } catch (error) {
+                console.warn(`Error removing route layer for ${routeName}:`, error);
             }
-            
-            if (layerGroup.waypoints) {
-                try {
-                    if (app.map.hasLayer(layerGroup.waypoints)) {
-                        app.map.removeLayer(layerGroup.waypoints);
-                    }
-                } catch (error) {
-                    console.warn(`Error removing waypoints for ${routeName}:`, error);
-                }
-            }
-        });
+        }
         
-        this.routeLayers = {};
-        this.activeRoutes = [];
-        
-        document.getElementById('route-details').style.display = 'none';
-        document.querySelectorAll('.route-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        app.map.setView([13.7565, 121.0583], 13);
-        
-        console.log('All routes cleared successfully');
-        alert('All routes cleared!');
-    }
+        // REMOVED: Waypoints cleanup
+    });
+    
+    this.routeLayers = {};
+    this.activeRoutes = [];
+    
+    document.getElementById('route-details').style.display = 'none';
+    document.querySelectorAll('.route-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    app.map.setView([13.7565, 121.0583], 13);
+    
+    console.log('All routes cleared successfully');
+    alert('All routes cleared!');
+}
 }
 
 // ENHANCED RoutePlanner Class with Improved Boarding Validation
@@ -1303,6 +1322,30 @@ class RoutePlanner {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('route-options').style.display = 'block';
         }
+    }
+
+    calculateDistance(coord1, coord2) {
+    const R = 6371000;
+    const lat1 = coord1[0] * Math.PI / 180;
+    const lat2 = coord2[0] * Math.PI / 180;
+    const deltaLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+    const deltaLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+
+    const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+}
+
+    // NEW: Check if coordinates are near port area
+    isNearPort(coords) {
+        const portCoords = allStops["Pier/Port of Batangas"];
+        if (!portCoords) return false;
+        
+        const distance = this.calculateDistance(coords, portCoords);
+        return distance <= 1000; // Within 1km of port
     }
 
     // IMPROVED: Find route options based on actual route paths
@@ -1451,6 +1494,7 @@ class RoutePlanner {
     }
 
     // NEW: Find distance to route points and return the closest point info
+    // Helper method to find distance to points
     findDistanceToPoints(coords, points) {
         let minDistance = Infinity;
         let closestPoint = null;
@@ -1665,25 +1709,31 @@ class RoutePlanner {
         `;
     }
 
-    // Show transfer route on map
-    async showTransferRoute(routeNames) {
-        routeManager.clearAllRoutesSilently();
-        document.getElementById('loading').style.display = 'block';
-        
-        try {
-            for (const routeName of routeNames) {
-                const routeData = jeepneyRoutes[routeName];
-                if (routeData) {
-                    await routeManager.createSnappedRoute(routeName, routeData);
-                }
+// Show transfer route on map
+async showTransferRoute(routeNames) {
+    routeManager.clearAllRoutesSilently();
+    document.getElementById('loading').style.display = 'block';
+    
+    try {
+        for (const routeName of routeNames) {
+            const routeData = jeepneyRoutes[routeName];
+            if (routeData) {
+                await routeManager.createSnappedRoute(routeName, routeData);
             }
-        } catch (error) {
-            console.error('Error showing transfer route:', error);
-            alert('Error displaying routes. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
         }
+        
+        // ENHANCED: Show landmarks with start and destination priority
+        const startLocation = document.getElementById('startLocation').value;
+        const endLocation = document.getElementById('endLocation').value;
+        app.showLandmarksForRoutes(routeNames, startLocation, endLocation);
+        
+    } catch (error) {
+        console.error('Error showing transfer route:', error);
+        alert('Error displaying routes. Please try again.');
+    } finally {
+        document.getElementById('loading').style.display = 'none';
     }
+}
 
     // KEEP ALL EXISTING HELPER METHODS (they work correctly)
     findDistanceToRoute(coords, routeData) {
@@ -1773,34 +1823,14 @@ class RoutePlanner {
 }
 
 
-// Traffic Layer Manager
-class TrafficLayer {
-    toggleTraffic() {
-        const button = document.getElementById('trafficToggle');
-        
-        if (this.trafficLayer) {
-            app.map.removeLayer(this.trafficLayer);
-            this.trafficLayer = null;
-            button.textContent = 'Show Traffic';
-        } else {
-            this.trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap France | Traffic Data'
-            }).addTo(app.map);
-            button.textContent = 'Hide Traffic';
-        }
-    }
-}
-
 // Initialize the application
 const app = new BatangasJeepneySystem();
 const routeManager = new RouteManager();
 const routePlanner = new RoutePlanner();
-const trafficLayer = new TrafficLayer();
 
 // Make available globally for HTML onclick events
 window.routeManager = routeManager;
 window.routePlanner = routePlanner;
-window.trafficLayer = trafficLayer;
 window.app = app;
 
 // Utility functions
