@@ -40,16 +40,44 @@ body {
 }
 
 .sidebar-toggle {
-    position: absolute;
-    left: -40px;
-    top: 10px;
-    background: white;
-    border: none;
-    border-radius: 6px 0 0 6px;
-    padding: 10px 8px;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-    cursor: pointer;
-    font-size: 16px;
+  display: none;
+}
+
+.sidebar-toggle:checked ~ .sidebar {
+  transform: translateX(100%);
+}
+
+.toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 400px;
+  background-color: white;
+  color: black;
+  border: none;
+  border-radius: 10px 0 0 10px;
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1100;
+  font-size: 18px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.2);
+}
+
+.toggle-btn:hover {
+  background-color: white;
+}
+
+.sidebar-toggle:checked + .toggle-btn {
+  right: 0;
+  border-radius: 10px 0 0 10px;
+}
+.arrow {
+  display: inline-block;
+  transition: transform 0.4s ease;
+}
+
+.sidebar-toggle:checked + .toggle-btn .arrow {
+  transform: rotate(180deg);
 }
 
 .route-item {
