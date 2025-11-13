@@ -1706,7 +1706,7 @@ canRouteServeTrip(startCoords, endCoords, routePoints, routeData) {
     const endIndex = this.findPointIndexInRoute(endNearest.point, routePoints);
     const pointDifference = Math.abs(startIndex - endIndex);
     
-    return pointDifference >= 3; // Minimum 3 points apart for meaningful trip
+    return pointDifference >= 1; 
 }
 
     // NEW: Find distance to route points and return the closest point info
