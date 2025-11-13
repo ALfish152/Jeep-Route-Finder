@@ -87,8 +87,53 @@ initializeInvalidCombinations() {
         "Sta. Clara Elementary School": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Lipa", "Batangas - Soro Soro", "Batangas - Balete", "Batangas - Bauan"],
         "BatStateU-Alangilan": ["Batangas - Sta. Clara/Pier"],
         "Batangas City Grand Terminal": ["Batangas - Sta. Clara/Pier"],
-        "SM Hypermarket": ["Batangas - Sta. Clara/Pier"],
-        "Waltermart": ["Batangas - Sta. Clara/Pier"] // Add Waltermart restriction
+        "SM Hypermarket": ["Batangas - Sta. Clara/Pier", "Batangas - Bauan" ],
+        "Waltermart": ["Batangas - Sta. Clara/Pier", "Batangas - Dagatan (Taysan)",
+            "Batangas - Lipa",      
+            "Batangas - Bauan",     
+            "Batangas - Balete"
+        ],
+    "Pier/Port of Batangas": [
+            "Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Lipa",
+            "Batangas - Soro Soro", "Batangas - Balete", "Batangas - Bauan"
+        ],
+
+        // NORTHERN ROUTES (can't board southern routes)
+        "SM City Batangas": [
+            "Batangas - Sta. Clara/Pier"  // SM is north, Pier is south
+        ],
+        "Batangas Medical Center": [
+            "Batangas - Sta. Clara/Pier"  // Hospital area to pier doesn't make sense
+        ],
+
+        // EDUCATIONAL INSTITUTIONS
+        "LPU - Batangas": [
+            "Batangas - Sta. Clara/Pier"  // Students don't typically go directly to pier
+        ],
+        "Golden Gate College": [
+            "Batangas - Sta. Clara/Pier"  // City center college to specialized pier route
+        ],
+
+        // COMMERCIAL HUBS
+        "Puregold New Market Batangas City": [
+            "Batangas - Lipa", "Batangas - Bauan"  // Market to long-distance routes unlikely
+        ],
+        "Bay City Mall": [
+            "Batangas - Sta. Clara/Pier"  // Mall to specialized pier route
+        ],
+
+        // TERMINAL SPECIFIC RESTRICTIONS
+        "Dagatan Jeepney Terminal": [
+            "Batangas - Sta. Clara/Pier"  // Taysan terminal to pier route
+        ],
+
+        // SPECIALIZED LOCATIONS
+        "Batangas Provincial Capitol": [
+            "Batangas - Sta. Clara/Pier"  // Government center to pier unlikely
+        ],
+        "Plaza Mabini": [
+            "Batangas - Lipa", "Batangas - Bauan"  // City center to long-distance routes
+        ]
     };
 }
 
@@ -1513,58 +1558,67 @@ class RoutePlanner {
         return distance <= 1000; // Within 1km of port
     }
 
-    // IMPROVED: Find route options based on actual route paths
     findRouteOptions(startCoords, endCoords) {
-        const routeOptions = [];
+    const routeOptions = [];
+    
+    console.log('Finding routes from:', startCoords, 'to:', endCoords);
+    
+    // Check each route to see if it can serve this trip
+    Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+        const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
         
-        console.log('Finding routes from:', startCoords, 'to:', endCoords);
+        // Find if route passes near start and end locations
+        const startProximity = this.findDistanceToPoints(startCoords, routePoints);
+        const endProximity = this.findDistanceToPoints(endCoords, routePoints);
         
-        // Check each route to see if it can serve this trip
-        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-            const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        
+        // Check if this route logically connects start and end
+        const canServeTrip = this.canRouteServeTrip(startCoords, endCoords, routePoints, routeData);
+        
+        if (canServeTrip) {
+            const startWalkDistance = startProximity.distance;
+            const endWalkDistance = endProximity.distance;
+            const startWalkTime = Math.round(startWalkDistance / 80); // 80m/min walking speed
+            const endWalkTime = Math.round(endWalkDistance / 80);
             
-            // Find if route passes near start and end locations
-            const startProximity = this.findDistanceToPoints(startCoords, routePoints);
-            const endProximity = this.findDistanceToPoints(endCoords, routePoints);
+            // Calculate route segment time (proportional to distance)
+            const routeTime = this.calculateRouteSegmentTime(routeData, startProximity.index, endProximity.index);
             
-            // Check if this route logically connects start and end
-            const canServeTrip = this.canRouteServeTrip(startCoords, endCoords, routePoints, routeData);
+            const totalTime = startWalkTime + routeTime + endWalkTime;
+            const fare = this.extractFare(routeData.fare);
             
-            if (canServeTrip) {
-                const startWalkDistance = startProximity.distance;
-                const endWalkDistance = endProximity.distance;
-                const startWalkTime = Math.round(startWalkDistance / 80); // 80m/min walking speed
-                const endWalkTime = Math.round(endWalkDistance / 80);
-                
-                // Calculate route segment time (proportional to distance)
-                const routeTime = this.calculateRouteSegmentTime(routeData, startProximity.index, endProximity.index);
-                
-                const totalTime = startWalkTime + routeTime + endWalkTime;
-                const fare = this.extractFare(routeData.fare);
-                
-                routeOptions.push({
-                    type: 'direct',
-                    routeName: routeName,
-                    routeData: routeData,
-                    startWalk: { distance: startWalkDistance, time: startWalkTime },
-                    endWalk: { distance: endWalkDistance, time: endWalkTime },
-                    routeTime: routeTime,
-                    totalTime: totalTime,
-                    totalFare: fare,
-                    confidence: this.calculateConfidence(startWalkDistance, endWalkDistance),
-                    description: `Direct route via ${routeName}`
-                });
-            }
-        });
-        
-        // Also look for transfer options
-        const transferOptions = this.findTransferOptions(startCoords, endCoords);
-        routeOptions.push(...transferOptions);
-        
-        // Sort by total time and confidence
-        return routeOptions
-            .sort((a, b) => {
-                // Prefer direct routes
+            const score = this.calculateRouteScore(
+                startWalkDistance, 
+                endWalkDistance, 
+                totalTime, 
+                fare, 
+                routeName
+            );
+            
+            routeOptions.push({
+                type: 'direct',
+                routeName: routeName,
+                routeData: routeData,
+                startWalk: { distance: startWalkDistance, time: startWalkTime },
+                endWalk: { distance: endWalkDistance, time: endWalkTime },
+                routeTime: routeTime,
+                totalTime: totalTime,
+                totalFare: fare,
+                score: score, 
+                confidence: this.calculateConfidence(startWalkDistance, endWalkDistance),
+                description: `Direct route via ${routeName}`
+            });
+        }
+    });
+    
+    // Also look for transfer options
+    const transferOptions = this.findTransferOptions(startCoords, endCoords);
+    routeOptions.push(...transferOptions);
+    
+    // Sort by total time and confidence
+    return routeOptions
+        .sort((a, b) => {
+            // Prefer direct routes
             if (a.score !== b.score) {
                 return b.score - a.score; // Descending order (higher scores first)
             }
@@ -1577,9 +1631,9 @@ class RoutePlanner {
             // Then by confidence (high > medium > low)
             const confidenceOrder = { high: 3, medium: 2, low: 1 };
             return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
-            })
-            .slice(0, 6); // Return top 6 options
-    }
+        })
+        .slice(0, 6); // Return top 6 options
+}
 
     calculateRouteScore(startWalkDistance, endWalkDistance, totalTime, fare, routeName) {
     let score = 0;
@@ -1588,6 +1642,11 @@ class RoutePlanner {
     const maxWalkDistance = 1000;
     const walkScore = Math.max(0, 100 - ((startWalkDistance + endWalkDistance) / maxWalkDistance * 100));
     score += walkScore;
+    
+    
+    if (startWalkDistance <= 300 && endWalkDistance <= 300) {
+        score += 50; // Big bonus for good direct routes
+    }
     
     // Time score (shorter time = higher score)
     const maxExpectedTime = 60; // minutes
@@ -1618,45 +1677,37 @@ class RoutePlanner {
 }
 
     // IMPROVED: Check if a route can logically serve the trip
-    canRouteServeTrip(startCoords, endCoords, routePoints, routeData) {
-        if (routePoints.length < 2) return false;
-        
-        // Find nearest points on route to start and end
-        const startNearest = this.findNearestPointOnRoute(startCoords, routeData);
-        const endNearest = this.findNearestPointOnRoute(endCoords, routeData);
-        
-        // Check if both points are reasonably close to the route
-        if (startNearest.distance > 500 || endNearest.distance > 500) {
-            return false;
-        }
-
-        // For specific known routes, apply special logic
-    if (routeData.description.toLowerCase().includes('port') || 
-        routeData.description.toLowerCase().includes('pier')) {
-        // Port routes should be prioritized for port destinations
-        const endNearPort = this.isNearPort(endCoords);
-        if (endNearPort) return true;
+canRouteServeTrip(startCoords, endCoords, routePoints, routeData) {
+    if (routePoints.length < 2) return false;
+    
+    const startNearest = this.findNearestPointOnRoute(startCoords, routeData);
+    const endNearest = this.findNearestPointOnRoute(endCoords, routeData);
+    
+    // Both points should be reasonably close to the route
+    if (startNearest.distance > 800 || endNearest.distance > 800) {
+        return false;
     }
-        
-        // For circular routes, allow any order
-        if (routeData.description.toLowerCase().includes('circular')) {
-            return true;
-        }
-        
-        // For normal routes, check if the route direction makes sense
-        // Find the indices of the nearest points in the route
+
+    // For circular routes, allow any combination (but still check minimum distance)
+    if (routeData.description.toLowerCase().includes('circular')) {
         const startIndex = this.findPointIndexInRoute(startNearest.point, routePoints);
         const endIndex = this.findPointIndexInRoute(endNearest.point, routePoints);
-        
-        // Route should go from start point to end point (start index < end index)
-        // Allow some flexibility for routes that might double back
-    
-
         const pointDifference = Math.abs(startIndex - endIndex);
-    
-    // Must be at least 2 points apart and not too far apart in the route sequence
-    return pointDifference >= 2 && pointDifference <= routePoints.length - 2;
+        return pointDifference >= 3; // Even circular routes need reasonable distance
     }
+
+    // For linear routes, check direction AND point order
+    if (!this.doesRouteGoTowardDestination(startCoords, endCoords, routeData)) {
+        return false; // Route goes wrong direction
+    }
+    
+    // Check if points are reasonably far apart
+    const startIndex = this.findPointIndexInRoute(startNearest.point, routePoints);
+    const endIndex = this.findPointIndexInRoute(endNearest.point, routePoints);
+    const pointDifference = Math.abs(startIndex - endIndex);
+    
+    return pointDifference >= 3; // Minimum 3 points apart for meaningful trip
+}
 
     // NEW: Find distance to route points and return the closest point info
     // Helper method to find distance to points
@@ -1702,25 +1753,34 @@ class RoutePlanner {
 
     // IMPROVED: Find transfer options between routes
     findTransferOptions(startCoords, endCoords) {
-        const transferOptions = [];
-        const allRoutes = Object.entries(jeepneyRoutes);
-        
-        // Find routes near start
-        const startRoutes = allRoutes.filter(([name, data]) => 
-            this.findDistanceToRoute(startCoords, data) <= 800
-        );
-        
-        // Find routes near end
-        const endRoutes = allRoutes.filter(([name, data]) =>
-            this.findDistanceToRoute(endCoords, data) <= 800
-        );
-        
-        // Find possible transfers between start and end routes
-        startRoutes.forEach(([startName, startData]) => {
-            endRoutes.forEach(([endName, endData]) => {
-                if (startName !== endName) {
+    const transferOptions = [];
+    const allRoutes = Object.entries(jeepneyRoutes);
+    
+    // Find routes near start
+    const startRoutes = allRoutes.filter(([name, data]) => 
+        this.findDistanceToRoute(startCoords, data) <= 800
+    );
+    
+    // Find routes near end  
+    const endRoutes = allRoutes.filter(([name, data]) =>
+        this.findDistanceToRoute(endCoords, data) <= 800
+    );
+    
+    // Find possible transfers between start and end routes
+    startRoutes.forEach(([startName, startData]) => {
+        endRoutes.forEach(([endName, endData]) => {
+            // ✅ FIX: Add check to prevent same-route transfers
+            if (startName !== endName && startName !== endName) { // Already have this, but ensure it works
+                
+                // ✅ ADD THIS NEW CHECK: Prevent transfers between identical routes
+                if (startName === endName) {
+                    return; // Skip same-route transfers
+                }
+                
+                // Then proceed with compatibility check...
+                if (this.areRoutesCompatible(startName, endName)) {
                     const transferPoint = this.findTransferPoint(startData, endData);
-                    if (transferPoint && transferPoint.distance <= 500) {
+                    if (transferPoint && transferPoint.distance <= 300) {
                         const option = this.createTransferOption(
                             startCoords, endCoords, 
                             startName, startData, 
@@ -1730,11 +1790,12 @@ class RoutePlanner {
                         if (option) transferOptions.push(option);
                     }
                 }
-            });
+            }
         });
-        
-        return transferOptions;
-    }
+    });
+    
+    return transferOptions;
+}
 
     // IMPROVED: Find transfer point between two routes
     findTransferPoint(route1, route2) {
@@ -1747,7 +1808,7 @@ class RoutePlanner {
         route1Points.forEach(point1 => {
             route2Points.forEach(point2 => {
                 const distance = this.calculateDistance(point1, point2);
-                if (distance < minDistance && distance <= 500) {
+                if (distance < minDistance && distance <= 300) {
                     minDistance = distance;
                     bestTransfer = {
                         point: point1,
@@ -2207,6 +2268,61 @@ updateTransferRouteDetails(routeNames, transferPoint) {
     `;
     detailsDiv.style.display = 'block';
 }
+areRoutesCompatible(route1Name, route2Name) {
+    const incompatiblePairs = {
+        // COMPETING ROUTES (serve same areas - pointless to transfer between them)
+        "Batangas - Alangilan": ["Batangas - Balagtas", "Batangas - Soro Soro","Batangas - Balete"],
+        "Batangas - Balagtas": ["Batangas - Alangilan", "Batangas - Soro Soro", "Batangas - Balete"],
+        "Batangas - Soro Soro": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Balete"],
+        "Batangas - Balete": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Soro Soro"],
+        
+        // DIFFERENT DIRECTION ROUTES
+        "Batangas - Lipa": ["Batangas - Bauan"], // Both are long-distance, different directions
+        "Batangas - Bauan": ["Batangas - Lipa"],
+        
+        // SPECIALIZED VS GENERAL ROUTES  
+        "Batangas - Libjo/San-Isidro/Tabangao": ["Batangas - Alangilan", "Batangas - Balagtas", "Batangas - Balete"]
+    };
+    
+    // Return false if routes are incompatible
+    return !(incompatiblePairs[route1Name]?.includes(route2Name) || 
+             incompatiblePairs[route2Name]?.includes(route1Name));
+}
+doesRouteGoTowardDestination(startCoords, endCoords, routeData) {
+        try {
+            const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+            
+            const startNearest = this.findNearestPointOnRoute(startCoords, routeData);
+            const endNearest = this.findNearestPointOnRoute(endCoords, routeData);
+            
+            const startIndex = this.findPointIndexInRoute(startNearest.point, routePoints);
+            const endIndex = this.findPointIndexInRoute(endNearest.point, routePoints);
+            
+            // Routes that go OUT of Batangas City
+            const outboundRoutes = [
+                "Batangas - Lipa", 
+                "Batangas - Bauan", 
+                "Batangas - Balete",
+                "Batangas - Dagatan (Taysan)"
+            ];
+            
+            // Find the route name
+            const routeName = Object.keys(jeepneyRoutes).find(name => 
+                jeepneyRoutes[name] === routeData
+            );
+            
+            if (outboundRoutes.includes(routeName)) {
+                // For outbound routes, destination must be AFTER start point
+                return endIndex > startIndex;
+            }
+            
+            return true; // For city routes, allow any direction
+            
+        } catch (error) {
+            console.error('Error in direction check:', error);
+            return true; // Default to allowing if check fails
+        }
+    }
 }
 
 
