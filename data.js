@@ -73,42 +73,12 @@ const jeepneyRoutes = {
             [13.753880755680488, 121.04497404515388]
         ],
             secretWaypoints: [
-        // FROM PIER TO POBLACION (following roads)
-        [13.7552, 121.0440],      // Port exit - P. Burgos St
-        [13.7555, 121.0450],      // Along P. Burgos
-        [13.7558, 121.0465],      // Near Batangas City Stadium
-        [13.7555, 121.0480],      // Turn to M.H. Del Pilar St
-        [13.7550, 121.0495],      // Along M.H. Del Pilar
-        [13.7545, 121.0510],      // Approaching Plaza Mabini
-        
-        // POBLACION
-        [13.7540, 121.0520],      // Plaza Mabini area
-        [13.7535, 121.0530],      // Near City Hall
-        [13.7530, 121.0540],      // St. Bridget College area
-        [13.7525, 121.0545],      // Commercial area
-        
-        // PALENGKE
-        [13.7520, 121.0550],      // Approaching Puregold
-        [13.7515, 121.0555],      // New Public Market area
-        [13.7510, 121.0560],      // Between markets
-        [13.7505, 121.0562],      // Old Market area
-        
-        // STA. CLARA AREA
-        [13.7500, 121.0560],      // Sta. Clara Elementary School
-        [13.7498, 121.0555],      // Residential area
-        
-        // RETURN TO PIER 
-        [13.7500, 121.0545],      // Turning back
-        [13.7505, 121.0535],      // Alternate route
-        [13.7510, 121.0525],      // Back through side streets
-        [13.7515, 121.0515],      // 
-        [13.7520, 121.0505],      // Return via different roads
-        [13.7525, 121.0495],      // 
-        [13.7530, 121.0485],      // Back to coastal area
-        [13.7535, 121.0475],      // 
-        [13.7540, 121.0465],      // Approaching port area
-        [13.7545, 121.0455],      // Final approach
-        [13.7550, 121.0445]       // Back to pier
+         [13.757469408104821, 121.0558826437163],
+            [13.75741415329892, 121.05646856464804],
+            [13.753822206596768, 121.05685193357698],
+            [13.75246548873908, 121.05532893191315],
+            [13.750619064002825, 121.05667885582513],
+            [13.749539746189303, 121.05299641049818]
     ],
 
         description: "Port area route connecting Pier to Sta. Clara via city markets",
