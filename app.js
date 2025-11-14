@@ -2424,4 +2424,70 @@ app.displayNearestMainRoutes = function(routes) {
         routeOptions.innerHTML = html;
         routeOptions.style.display = 'block';
     }
+
+// Mobile
+class MobileUI {
+    constructor() {
+        this.isMobile = window.innerWidth <= 768;
+        this.init();
+    }
+
+    init() {
+        if (this.isMobile) {
+            this.setupMobileUI();
+        }
+    }
+
+    setupMobileUI() {
+        // Adjust map height when sidebar opens/closes
+        const map = document.getElementById('map');
+        const sidebar = document.getElementById('sidebar');
+        
+        const observer = new MutationObserver(() => {
+            if (sidebar.classList.contains('expanded')) {
+                map.style.height = '15vh';
+            } else {
+                map.style.height = '60vh';
+            }
+        });
+
+        observer.observe(sidebar, { attributes: true });
+    }
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        
+        sidebar.classList.toggle('expanded');
+        
+        if (toggleBtn) {
+            toggleBtn.textContent = sidebar.classList.contains('expanded') ? '▼' : '▲';
+        }
+    }
+}
+
+// Initialize mobile UI
+const mobileUI = new MobileUI();
+
+// Update sidebar toggle to work on both mobile and desktop
+function toggleSidebarUniversal() {
+    if (window.innerWidth <= 768) {
+        mobileUI.toggleSidebar();
+    } else {
+        // Use the original desktop toggle
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '☰' : '✕';
+    }
+}
+
+// Replace the existing sidebar toggle
+document.getElementById('sidebarToggle').addEventListener('click', toggleSidebarUniversal);
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    mobileUI.isMobile = window.innerWidth <= 768;
+});
 };

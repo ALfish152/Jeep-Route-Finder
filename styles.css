@@ -1068,3 +1068,126 @@ body {
     font-weight: bold;
     color: #856404;
 }
+
+/*phone*/
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+
+    #map {
+        height: 60vh;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: auto;
+        bottom: 200px;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 40vh;
+        border-radius: 20px 20px 0 0;
+        padding: 15px;
+        transform: translateY(calc(100% - 50px));
+        transition: transform 0.3s ease;
+        z-index: 1000;
+        background: white;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+        max-height: 85vh;
+    }
+
+    .toggle-btn {
+        position: fixed;
+        bottom: 40vh;
+        right: 15px;
+        background: white;
+        color: white;
+        border-radius: 10px 0 0 10px;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 1001;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sidebar.expanded + .toggle-btn {
+        bottom: 85vh;
+    }
+
+
+    .search-box {
+        padding: 12px;
+        margin-bottom: 10px;
+        width: 100%;
+        font-size: 16px;
+    }
+
+    .control-btn {
+        padding: 12px 16px;
+        font-size: 14px;
+        margin: 4px 2px;
+        width: 100%;
+    }
+
+    .location-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .location-btn {
+        width: 100%;
+        padding: 12px;
+    }
+
+    .route-item {
+        padding: 12px;
+        margin: 8px 0;
+    }
+
+    .route-options {
+        padding: 12px;
+        margin-top: 10px;
+    }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 350px;
+    }
+}
+
+/* Landscape */
+@media (max-width: 768px) and (orientation: landscape) {
+    #map {
+        height: 40vh;
+    }
+    
+    .sidebar {
+        max-height: 60vh;
+        bottom: 100px;
+    }
+
+    .toggle-btn{
+        bottom: 5000px;
+    }
+    
+    .sidebar.expanded {
+        max-height: 60vh;
+    }
+}
