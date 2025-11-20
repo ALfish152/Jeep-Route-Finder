@@ -1342,35 +1342,35 @@ async showAllRoutes() {
         }
     }
 
-updateRouteDetails(routeName, routeData, routeInfo, hour) {
-    const currentDetails = document.getElementById('route-details').innerHTML;
-    if (currentDetails.includes('Transfer Route')) {
-        return;
-    }
-    
-    const detailsDiv = document.getElementById('route-details');
-    const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
-    
-    // Simplified ETA calculation
-    const baseDuration = routeInfo.duration ? Math.round(routeInfo.duration / 60) : routeData.baseTime;
-    const stopTime = routeData.stops * 0.5;
-    const totalMinutes = Math.round(baseDuration + stopTime);
-    
-    // SIMPLIFIED: Only show essential info
-    detailsDiv.innerHTML = `
-        <h4>${routeName}</h4>
-        <p><strong>Distance:</strong> ${distance} km</p>
-        <p><strong>Estimated Time:</strong> ${totalMinutes} minutes</p>
-        <p><strong>Fare:</strong> ${app.formatFare(routeData.fare)}</p>
-        
-        <div style="margin-top: 15px;">
-            <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
-                🗑️ Clear This Route
-            </button>
-        </div>
-    `;
-    detailsDiv.style.display = 'block';
-}
+    updateRouteDetails(routeName, routeData, routeInfo, hour) {
+            const currentDetails = document.getElementById('route-details').innerHTML;
+            if (currentDetails.includes('Transfer Route')) {
+                return;
+            }
+            
+            const detailsDiv = document.getElementById('route-details');
+            const distance = routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : 'N/A';
+            
+            // Use the calculated route time instead of complex ETA calculation
+            const totalMinutes = routeInfo.duration ? Math.round(routeInfo.duration / 60) : 
+            routePlanner.calculateTravelTime(routeInfo.distance || 5000);
+            
+            // Show essential info with distance
+            detailsDiv.innerHTML = `
+                <h4>${routeName}</h4>
+                <p><strong>Distance:</strong> ${distance} km</p>
+                <p><strong>Estimated Time:</strong> ${totalMinutes} minutes (14 km/h average)</p>
+                <p><strong>Fare:</strong> ${app.formatFare(routeData.fare)}</p>
+                
+                <div style="margin-top: 15px;">
+                    <button class="control-btn" style="background: #dc3545;" onclick="routeManager.clearAllRoutes()">
+                        🗑️ Clear This Route
+                    </button>
+                </div>
+            `;
+            detailsDiv.style.display = 'block';
+        }
+
 
     getTrafficMultiplier(hour) {
         for (const [period, data] of Object.entries(TRAFFIC_PATTERNS)) {
@@ -1475,7 +1475,6 @@ async createSnappedRouteForTransfer(routeName, routeData) {
 
 }
 
-// ENHANCED RoutePlanner Class with Improved Boarding Validation
 // Fixed RoutePlanner class with improved route matching
 class RoutePlanner {
     async planRoute() {
@@ -1548,6 +1547,15 @@ class RoutePlanner {
 
     return R * c;
 }
+ // NEW: Calculate travel time using 14 km/h base speed
+    calculateTravelTime(distanceMeters) {
+        const speedKmh = 14; // Base speed in km/h
+        const speedMs = speedKmh * 1000 / 3600; // Convert to meters per second
+        const timeSeconds = distanceMeters / speedMs;
+        const timeMinutes = Math.round(timeSeconds / 60);
+        
+        return Math.max(1, timeMinutes); // Minimum 1 minute
+    }
 
     // NEW: Check if coordinates are near port area
     isNearPort(coords) {
@@ -1558,83 +1566,88 @@ class RoutePlanner {
         return distance <= 1000; // Within 1km of port
     }
 
+    // MODIFIED: Update the route planning to use direct distance and 14km/h speed
     findRouteOptions(startCoords, endCoords) {
-    const routeOptions = [];
-    
-    console.log('Finding routes from:', startCoords, 'to:', endCoords);
-    
-    // Check each route to see if it can serve this trip
-    Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
-        const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
+        const routeOptions = [];
         
-        // Find if route passes near start and end locations
-        const startProximity = this.findDistanceToPoints(startCoords, routePoints);
-        const endProximity = this.findDistanceToPoints(endCoords, routePoints);
+        console.log('Finding routes from:', startCoords, 'to:', endCoords);
         
+        // Calculate direct distance between start and end
+        const directDistance = this.calculateDistance(startCoords, endCoords);
+        const directTime = this.calculateTravelTime(directDistance);
         
-        // Check if this route logically connects start and end
-        const canServeTrip = this.canRouteServeTrip(startCoords, endCoords, routePoints, routeData);
-        
-        if (canServeTrip) {
-            const startWalkDistance = startProximity.distance;
-            const endWalkDistance = endProximity.distance;
-            const startWalkTime = Math.round(startWalkDistance / 80); // 80m/min walking speed
-            const endWalkTime = Math.round(endWalkDistance / 80);
+        // Check each route to see if it can serve this trip
+        Object.entries(jeepneyRoutes).forEach(([routeName, routeData]) => {
+            const routePoints = [...routeData.waypoints, ...(routeData.secretWaypoints || [])];
             
-            // Calculate route segment time (proportional to distance)
-            const routeTime = this.calculateRouteSegmentTime(routeData, startProximity.index, endProximity.index);
+            // Find if route passes near start and end locations
+            const startProximity = this.findDistanceToPoints(startCoords, routePoints);
+            const endProximity = this.findDistanceToPoints(endCoords, routePoints);
             
-            const totalTime = startWalkTime + routeTime + endWalkTime;
-            const fare = this.extractFare(routeData.fare);
+            // Check if this route logically connects start and end
+            const canServeTrip = this.canRouteServeTrip(startCoords, endCoords, routePoints, routeData);
             
-            const score = this.calculateRouteScore(
-                startWalkDistance, 
-                endWalkDistance, 
-                totalTime, 
-                fare, 
-                routeName
-            );
-            
-            routeOptions.push({
-                type: 'direct',
-                routeName: routeName,
-                routeData: routeData,
-                startWalk: { distance: startWalkDistance, time: startWalkTime },
-                endWalk: { distance: endWalkDistance, time: endWalkTime },
-                routeTime: routeTime,
-                totalTime: totalTime,
-                totalFare: fare,
-                score: score, 
-                confidence: this.calculateConfidence(startWalkDistance, endWalkDistance),
-                description: `Direct route via ${routeName}`
-            });
-        }
-    });
-    
-    // Also look for transfer options
-    const transferOptions = this.findTransferOptions(startCoords, endCoords);
-    routeOptions.push(...transferOptions);
-    
-    // Sort by total time and confidence
-    return routeOptions
-        .sort((a, b) => {
-            // Prefer direct routes
-            if (a.score !== b.score) {
-                return b.score - a.score; // Descending order (higher scores first)
+            if (canServeTrip) {
+                const startWalkDistance = startProximity.distance;
+                const endWalkDistance = endProximity.distance;
+                const startWalkTime = Math.round(startWalkDistance / 80); // 80m/min walking speed
+                const endWalkTime = Math.round(endWalkDistance / 80);
+                
+                // Calculate route segment time using direct distance and 14km/h
+                const routeSegmentDistance = this.calculateDistance(startProximity.point, endProximity.point);
+                const routeTime = this.calculateTravelTime(routeSegmentDistance);
+                
+                const totalTime = startWalkTime + routeTime + endWalkTime;
+                const fare = this.extractFare(routeData.fare);
+                
+                const score = this.calculateRouteScore(
+                    startWalkDistance, 
+                    endWalkDistance, 
+                    totalTime, 
+                    fare, 
+                    routeName
+                );
+                
+                routeOptions.push({
+                    type: 'direct',
+                    routeName: routeName,
+                    routeData: routeData,
+                    startWalk: { distance: startWalkDistance, time: startWalkTime },
+                    endWalk: { distance: endWalkDistance, time: endWalkTime },
+                    routeTime: routeTime,
+                    routeDistance: routeSegmentDistance,
+                    totalTime: totalTime,
+                    totalFare: fare,
+                    score: score, 
+                    confidence: this.calculateConfidence(startWalkDistance, endWalkDistance),
+                    description: `Direct route via ${routeName}`
+                });
             }
-            
-            // Then by total time (shorter time first)
-            if (a.totalTime !== b.totalTime) {
-                return a.totalTime - b.totalTime;
-            }
-            
-            // Then by confidence (high > medium > low)
-            const confidenceOrder = { high: 3, medium: 2, low: 1 };
-            return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
-        })
-        .slice(0, 6); // Return top 6 options
-}
-
+        });
+        
+        // Also look for transfer options
+        const transferOptions = this.findTransferOptions(startCoords, endCoords);
+        routeOptions.push(...transferOptions);
+        
+        // Sort by total time and confidence
+        return routeOptions
+            .sort((a, b) => {
+                // Prefer direct routes
+                if (a.score !== b.score) {
+                    return b.score - a.score; // Descending order (higher scores first)
+                }
+                
+                // Then by total time (shorter time first)
+                if (a.totalTime !== b.totalTime) {
+                    return a.totalTime - b.totalTime;
+                }
+                
+                // Then by confidence (high > medium > low)
+                const confidenceOrder = { high: 3, medium: 2, low: 1 };
+                return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
+            })
+            .slice(0, 6); // Return top 6 options
+    }
     calculateRouteScore(startWalkDistance, endWalkDistance, totalTime, fare, routeName) {
     let score = 0;
     
@@ -1824,44 +1837,54 @@ canRouteServeTrip(startCoords, endCoords, routePoints, routeData) {
 
     // IMPROVED: Create transfer route option
     // IMPROVED: Create transfer route option (ensure this exists)
-createTransferOption(startCoords, endCoords, startRouteName, startData, endRouteName, endData, transfer) {
-    const startWalkDistance = this.findDistanceToRoute(startCoords, startData);
-    const endWalkDistance = this.findDistanceToRoute(endCoords, endData);
-    
-    if (startWalkDistance > 1000 || endWalkDistance > 1000) return null;
-    
-    const startWalkTime = Math.round(startWalkDistance / 80);
-    const endWalkTime = Math.round(endWalkDistance / 80);
-    const transferWalkTime = transfer.walkTime;
-    
-    // Estimate route times
-    const route1Time = Math.round(startData.baseTime * 0.4);
-    const route2Time = Math.round(endData.baseTime * 0.4);
-    
-    const totalTime = startWalkTime + route1Time + transferWalkTime + route2Time + endWalkTime + 5;
-    
-    const totalFare = this.extractFare(startData.fare) + this.extractFare(endData.fare);
-    
-    return {
-        type: 'transfer',
-        routeNames: [startRouteName, endRouteName],
-        routeData: [startData, endData],
-        startWalk: { distance: startWalkDistance, time: startWalkTime },
-        endWalk: { distance: endWalkDistance, time: endWalkTime },
-        transfer: {
-            point: transfer.point,
-            distance: transfer.distance,
-            walkTime: transfer.walkTime,
-            // Add nearest landmark for better description
-            nearestLandmark: this.findNearestLandmarkToTransfer(transfer.point)
-        },
-        routeTimes: [route1Time, route2Time],
-        totalTime: totalTime,
-        totalFare: totalFare,
-        confidence: 'medium',
-        description: `${startRouteName} → ${endRouteName}`
-    };
-}
+    // MODIFIED: Update transfer option creation to use 14km/h speed
+    createTransferOption(startCoords, endCoords, startRouteName, startData, endRouteName, endData, transfer) {
+        const startWalkDistance = this.findDistanceToRoute(startCoords, startData);
+        const endWalkDistance = this.findDistanceToRoute(endCoords, endData);
+        
+        if (startWalkDistance > 1000 || endWalkDistance > 1000) return null;
+        
+        const startWalkTime = Math.round(startWalkDistance / 80);
+        const endWalkTime = Math.round(endWalkDistance / 80);
+        const transferWalkTime = transfer.walkTime;
+        
+        // Estimate route times using 14km/h speed
+        const route1Distance = this.calculateDistance(
+            this.findNearestPointOnRoute(startCoords, startData).point,
+            transfer.point
+        );
+        const route2Distance = this.calculateDistance(
+            transfer.point,
+            this.findNearestPointOnRoute(endCoords, endData).point
+        );
+        
+        const route1Time = this.calculateTravelTime(route1Distance);
+        const route2Time = this.calculateTravelTime(route2Distance);
+        
+        const totalTime = startWalkTime + route1Time + transferWalkTime + route2Time + endWalkTime + 5;
+        
+        const totalFare = this.extractFare(startData.fare) + this.extractFare(endData.fare);
+        
+        return {
+            type: 'transfer',
+            routeNames: [startRouteName, endRouteName],
+            routeData: [startData, endData],
+            startWalk: { distance: startWalkDistance, time: startWalkTime },
+            endWalk: { distance: endWalkDistance, time: endWalkTime },
+            transfer: {
+                point: transfer.point,
+                distance: transfer.distance,
+                walkTime: transfer.walkTime,
+                nearestLandmark: this.findNearestLandmarkToTransfer(transfer.point)
+            },
+            routeTimes: [route1Time, route2Time],
+            routeDistances: [route1Distance, route2Distance],
+            totalTime: totalTime,
+            totalFare: totalFare,
+            confidence: 'medium',
+            description: `${startRouteName} → ${endRouteName}`
+        };
+    }
 
 // NEW: Find nearest landmark to transfer point
 findNearestLandmarkToTransfer(transferPoint) {
