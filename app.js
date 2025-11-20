@@ -2309,7 +2309,7 @@ areRoutesCompatible(route1Name, route2Name) {
     
     // Return false if routes are incompatible
     return !(incompatiblePairs[route1Name]?.includes(route2Name) || 
-             incompatiblePairs[route2Name]?.includes(route1Name));
+            incompatiblePairs[route2Name]?.includes(route1Name));
 }
 doesRouteGoTowardDestination(startCoords, endCoords, routeData) {
         try {
@@ -2513,4 +2513,5 @@ document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar
 window.addEventListener('resize', () => {
     mobileUI.isMobile = window.innerWidth <= 768;
 });
+
 };
