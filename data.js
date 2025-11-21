@@ -137,7 +137,7 @@ const jeepneyRoutes = {
         ],
         description: "Route from Taysan area to city center via educational institutions",
         frequency: "Every 15-20 minutes",
-        fare: "₱13-30",
+        fare: "₱13-31",
         baseTime: 35,
         stops: 10,
         operator: "Dagatan Transport Service"
