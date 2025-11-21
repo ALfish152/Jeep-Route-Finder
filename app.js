@@ -1918,7 +1918,7 @@ findNearestLandmarkToTransfer(transferPoint) {
         
         routeOptions.forEach((option, index) => {
             if (option.type === 'direct') {
-                html += this.formatDirectOption(option, index, startCoords, endCoords);
+                html += this.formatDirectOption(option.routeData, option, index, startCoords, endCoords);
             } else if (option.type === 'transfer') {
                 html += this.formatTransferOption(option, index);
             }
@@ -1927,7 +1927,7 @@ findNearestLandmarkToTransfer(transferPoint) {
         document.getElementById('route-options').innerHTML = html;
     }
 
-formatDirectOption(option, index, startCoords, endCoords) {
+formatDirectOption(routeData, option, index, startCoords, endCoords) {
     const confidenceBadge = option.confidence === 'high' ? '🟢' : option.confidence === 'medium' ? '🟡' : '🔴';
     
     return `
@@ -1943,7 +1943,7 @@ formatDirectOption(option, index, startCoords, endCoords) {
                     → <span class="leg-walk">🚶 ${Math.round(option.endWalk.distance)}m (${option.endWalk.time}min)</span>
                 </div>
                 <div class="route-summary">
-                    🕐 Total: ${option.totalTime}min • 💰 ${option.routeData.fare}
+                    🕐 Total: ${option.totalTime}min • 💰 ${app.formatFare(routeData.fare)}
                 </div>
             </div>
         </div>

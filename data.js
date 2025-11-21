@@ -24,7 +24,7 @@ const jeepneyRoutes = {
         ],
         description: "Main route from City Grand Terminal to Alangilan via key educational institutions",
         frequency: "Every 5-8 minutes",
-        fare: "₱12-20",
+        fare: "₱13-18",
         baseTime: 25,
         stops: 12,
         operator: "Alangilan Jeepney Association"
@@ -59,7 +59,7 @@ const jeepneyRoutes = {
         ],
         description: "Comprehensive route connecting Grand Terminal to Balagtas via multiple key locations",
         frequency: "Every 6-10 minutes",
-        fare: "₱15-25",
+        fare: "₱13-18",
         baseTime: 30,
         stops: 16,
         operator: "Balagtas Transport Cooperative"
@@ -83,7 +83,7 @@ const jeepneyRoutes = {
 
         description: "Port area route connecting Pier to Sta. Clara via city markets",
         frequency: "Every 8-12 minutes",
-        fare: "₱10-15",
+        fare: "₱13",
         baseTime: 12,
         stops: 5,
         operator: "Sta. Clara Jeepney Operators"
@@ -112,7 +112,7 @@ const jeepneyRoutes = {
         ],
         description: "Circular route connecting SM City to Medical Center via government and educational institutions",
         frequency: "Every 10-15 minutes",
-        fare: "₱12-18",
+        fare: "₱13",
         baseTime: 20,
         stops: 16,
         operator: "Capitolio-Hospital Transport"
@@ -137,7 +137,7 @@ const jeepneyRoutes = {
         ],
         description: "Route from Taysan area to city center via educational institutions",
         frequency: "Every 15-20 minutes",
-        fare: "₱20-30",
+        fare: "₱13-30",
         baseTime: 35,
         stops: 10,
         operator: "Dagatan Transport Service"
@@ -158,7 +158,7 @@ const jeepneyRoutes = {
         ],
         description: "Inter-city route connecting Batangas to Lipa City",
         frequency: "Every 15-25 minutes",
-        fare: "₱30-40",
+        fare: "₱13-50",
         baseTime: 45,
         stops: 8,
         operator: "Batangas-Lipa Transport Cooperative"
@@ -187,7 +187,7 @@ const jeepneyRoutes = {
         ],
         description: "Route from Soro Soro area to city markets and educational institutions",
         frequency: "Every 10-15 minutes",
-        fare: "₱15-25",
+        fare: "₱13-30",
         baseTime: 30,
         stops: 12,
         operator: "Soro Soro Transport Association"
@@ -239,7 +239,7 @@ const jeepneyRoutes = {
         ],
         description: "Feeder route from Libjo/San Isidro/Tabangao to city commercial areas",
         frequency: "Every 8-12 minutes",
-        fare: "₱12-20",
+        fare: "₱13-18",
         baseTime: 18,
         stops: 10,
         operator: "Libjo Transport Cooperative"
@@ -262,7 +262,7 @@ const jeepneyRoutes = {
         ],
         description: "Route from Bauan to Batangas City via diversion road and commercial areas",
         frequency: "Every 15-20 minutes",
-        fare: "₱25-35",
+        fare: "₱13-30",
         baseTime: 35,
         stops: 9,
         operator: "Bauan-Batangas Transport"
