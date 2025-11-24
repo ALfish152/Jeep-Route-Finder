@@ -2,19 +2,17 @@
     box-sizing: border-box;
 }
 
-body {
+html, body {
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f7fa;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
 }
 
 #map {
     height: 100vh;
     width: 100%;
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     z-index: 1;
@@ -1201,3 +1199,18 @@ body {
         max-height: 60vh;
     }
 }
+
+/* City Boundary Styling */
+.city-boundary {
+    pointer-events: none;
+}
+
+/* Make sure map controls are visible */
+.leaflet-control-zoom {
+    z-index: 1000;
+}
+
+.leaflet-control-scale {
+    z-index: 1000;
+}
+

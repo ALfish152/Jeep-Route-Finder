@@ -226,12 +226,58 @@ initializeMap() {
         mapElement.style.width = '100%';
     }
     
-    // INCREASED ZOOM: Changed from 13 to 15 for closer view
-    this.map = L.map('map').setView([13.7565, 121.0583], 15);
+    // BATANGAS CITY BOUNDS
+    const batangasBounds = L.latLngBounds(
+        L.latLng(13.7200, 121.0200),
+        L.latLng(13.8200, 121.1200)
+    );
+
+    // Calculate the perfect minZoom to prevent gray areas
+    const mapWidth = mapElement.clientWidth;
+    const boundsWidth = batangasBounds.getEast() - batangasBounds.getWest();
+    const perfectMinZoom = Math.floor(Math.log2(mapWidth / (boundsWidth * 256))) + 1;
+
+    // Initialize map with perfect zoom restrictions
+    this.map = L.map('map', {
+        center: [13.7565, 121.0583],
+        zoom: 15,
+        minZoom: 15,  // Increased to prevent gray areas - users can't zoom out as far
+        maxZoom: 18,
+        maxBounds: batangasBounds,
+        maxBoundsViscosity: 1.0,
+        worldCopyJump: false
+    });
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        noWrap: true,
+        bounds: batangasBounds
     }).addTo(this.map);
+
+    // STRICT bounds enforcement
+    this.map.on('drag', () => {
+        this.map.panInsideBounds(batangasBounds, { animate: false });
+    });
+
+    this.map.on('moveend', () => {
+        if (!batangasBounds.contains(this.map.getCenter())) {
+            this.map.panTo([13.7565, 121.0583], { animate: true });
+        }
+    });
+
+    // PREVENT ZOOMING OUT TO GRAY AREAS
+    this.map.on('zoomend', () => {
+        const currentZoom = this.map.getZoom();
+        if (currentZoom < 15) {
+            this.map.setZoom(15); // Force back to safe zoom level
+        }
+        
+        // If gray areas are visible at current zoom, zoom in slightly
+        const currentBounds = this.map.getBounds();
+        if (!batangasBounds.contains(currentBounds)) {
+            this.map.setZoom(15);
+        }
+    });
 
     // Initialize empty landmarks layer
     this.landmarksLayer = L.layerGroup().addTo(this.map);
@@ -243,12 +289,14 @@ initializeMap() {
         legend.remove();
     });
 
-    // NEW: Add map click listener for custom destinations
+    // Map click listener
     this.map.on('click', (e) => {
         if (this.mapClickEnabled) {
             this.handleMapClick(e.latlng);
         }
     });
+
+    this.showNotification('🗺️ Map locked to Batangas City', 'info');
 }
 
 // ENHANCED: Show landmarks with priority for start and destination
@@ -978,6 +1026,9 @@ displayNearestRoutes(routes, userLocation, searchRadius) {
     
     routeManager.clearAllRoutesSilently();
     
+    // ALWAYS reset to Batangas City center within bounds
+    this.map.setView([13.7565, 121.0583], 15);
+    
     // Reset map click mode
     this.mapClickEnabled = false;
     const button = document.getElementById('mapClickToggle');
@@ -986,7 +1037,7 @@ displayNearestRoutes(routes, userLocation, searchRadius) {
         button.style.background = '#e3f2fd';
     }
     
-    this.showNotification('🗑️ Location inputs and routes cleared!', 'info');
+    this.showNotification('🗑️ Cleared! Map reset to Batangas City center.', 'info');
 }
 
 // NEW: Clear all transfer points
