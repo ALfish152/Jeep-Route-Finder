@@ -1151,6 +1151,184 @@ class RouteManager {
         this.activeRoutes = [];
     }
 
+    // Create direction markers (emoji) along a polyline to indicate direction
+    createDirectionMarkers(routeLayer, routeData) {
+        try {
+            // Normalize latlngs (handle nested arrays from multi-polylines)
+            let latlngs = routeLayer.getLatLngs();
+            if (!latlngs) return [];
+            // If nested (array of arrays), flatten one level
+            if (Array.isArray(latlngs[0]) && latlngs[0] && latlngs[0].lat === undefined) {
+                latlngs = latlngs.flat();
+            }
+            if (latlngs.length < 2) return [];
+
+            // Helper: calculate bearing between two latlngs (degrees)
+            const bearing = (a, b) => {
+                const toRad = d => d * Math.PI / 180;
+                const toDeg = r => r * 180 / Math.PI;
+                const lat1 = toRad(a.lat);
+                const lat2 = toRad(b.lat);
+                const dLon = toRad(b.lng - a.lng);
+                const y = Math.sin(dLon) * Math.cos(lat2);
+                const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+                return (toDeg(Math.atan2(y, x)) + 360) % 360;
+            };
+
+            // Color helpers: parse hex, compute luminance, mix colors for contrast
+            const hexToRgb = (hex) => {
+                if (!hex) return null;
+                const h = hex.replace('#', '');
+                if (h.length === 2) {
+                    return {
+                        r: parseInt(h[0] + h[0], 16),
+                        g: parseInt(h[1] + h[1], 16),
+                        b: parseInt(h[2] + h[2], 16)
+                    };
+                }
+                if (h.length === 5) {
+                    return {
+                        r: parseInt(h.substring(0,2), 16),
+                        g: parseInt(h.substring(2,4), 16),
+                        b: parseInt(h.substring(4,6), 16)
+                    };
+                }
+                return null;
+            };
+
+            const rgbToHex = (r,g,b) => {
+                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            };
+
+            const luminance = (r,g,b) => {
+                // relative luminance (0..1)
+                const srgb = [r,g,b].map(v => v/255).map(c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4));
+                return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+            };
+
+            const mixColors = (hex1, hex2, weight = 0.5) => {
+                const c1 = hexToRgb(hex1) || {r:34,g:34,b:34};
+                const c2 = hexToRgb(hex2) || {r:255,g:255,b:255};
+                const r = c1.r * (1-weight) + c2.r * weight;
+                const g = c1.g * (1-weight) + c2.g * weight;
+                const b = c1.b * (1-weight) + c2.b * weight;
+                return rgbToHex(r,g,b);
+            };
+
+            // Create small SVG arrow and rotate it to the exact bearing — more accurate than emoji octants
+            const makeSvgFor = (deg, color) => {
+                const base = color || '#333';
+                // choose mix direction based on luminance to ensure contrast
+                const rgb = hexToRgb(base);
+                let arrowColor = base;
+                if (rgb) {
+                    const lum = luminance(rgb.r, rgb.g, rgb.b);
+                    // if very light color, darken; otherwise lighten slightly
+                    if (lum > 0.7) {
+                        arrowColor = mixColors(base, '#000000', 0.45);
+                    } else {
+                        arrowColor = mixColors(base, '#ffffff', 0.45);
+                    }
+                }
+
+                // SVG points right (east) by default; rotate by (deg - 90) so 0°(north) points up
+                const rot = (deg - 90 + 360) % 360;
+                const c = arrowColor;
+                // Draw a thin black outline behind the arrow by drawing a thicker black stroke
+                // and then drawing the colored stroke/fill on top.
+                return `
+                    <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(${rot}deg); display:block;">
+                        <!-- outline line behind -->
+                        <path d="M2 12 L16 12" stroke="#000" stroke-width="4" stroke-linecap="round" opacity="0.9" />
+                        <!-- colored line on top -->
+                        <path d="M2 12 L16 12" stroke="${c}" stroke-width="2" stroke-linecap="round" />
+
+                        <!-- outline triangle behind -->
+                        <path d="M10 6 L18 12 L10 18 Z" fill="#000" stroke="#000" stroke-width="1.5" stroke-linejoin="round" />
+                        <!-- colored triangle on top with its own thin stroke for crisp edge -->
+                        <path d="M10 6 L18 12 L10 18 Z" fill="${c}" stroke="#000" stroke-width="0.8" stroke-linejoin="round" />
+                    </svg>
+                `;
+            };
+
+            // Densify long segments and then pick marker positions; this smooths direction on long/curvy roads
+            const densified = [];
+            for (let i = 0; i < latlngs.length - 1; i++) {
+                const a = latlngs[i];
+                const b = latlngs[i + 1];
+                densified.push(a);
+
+                // distance in meters between points (use app.calculateDistance if available)
+                let segDist = null;
+                try {
+                    segDist = app && typeof app.calculateDistance === 'function' ? app.calculateDistance([a.lat, a.lng], [b.lat, b.lng]) : null;
+                } catch (e) {
+                    segDist = null;
+                }
+
+                // If segment is long, interpolate extra points every ~120 meters
+                const maxChunk = 120; // meters
+                if (segDist && segDist > maxChunk) {
+                    const parts = Math.ceil(segDist / maxChunk);
+                    for (let p = 1; p < parts; p++) {
+                        const t = p / parts;
+                        const lat = a.lat + (b.lat - a.lat) * t;
+                        const lng = a.lng + (b.lng - a.lng) * t;
+                        densified.push({ lat, lng });
+                    }
+                }
+            }
+            // push last point
+            densified.push(latlngs[latlngs.length - 1]);
+
+            const totalSegments = densified.length - 1;
+            if (totalSegments < 1) return [];
+
+            // Increase desired to reduce spacing between arrows (smaller gaps)
+            // Use a slightly smaller divisor so we place more markers for the same number of segments.
+            const desired = Math.min(25, Math.max(3, Math.floor(totalSegments / 4) + 1));
+            const step = Math.max(1, Math.floor(totalSegments / desired));
+
+            const markers = [];
+            for (let i = 0; i < totalSegments; i += step) {
+                const a = densified[i];
+                const b = densified[i + 1];
+
+                // midpoint for placement
+                const lat = a.lat + (b.lat - a.lat) * 0.5;
+                const lng = a.lng + (b.lng - a.lng) * 0.5;
+                const pos = L.latLng(lat, lng);
+
+                // smooth bearing using neighbor points (p .. n) to reduce noisy flips
+                const pIndex = Math.max(0, i - 1);
+                const nIndex = Math.min(densified.length - 1, i + 2);
+                const p = densified[pIndex];
+                const n = densified[nIndex];
+                const deg = bearing(p, n);
+
+                const svg = makeSvgFor(deg, routeData && routeData.color ? routeData.color : '#222');
+
+                const marker = L.marker(pos, {
+                    icon: L.divIcon({
+                        className: 'direction-marker',
+                        html: svg,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    }),
+                    interactive: false
+                }).addTo(app.map);
+
+                markers.push(marker);
+            }
+
+            return markers;
+        } catch (err) {
+            console.warn('Error creating direction markers:', err);
+            return [];
+        }
+    }
+
     async createSnappedRoute(routeName, routeData) {
     const hour = 12;
     
@@ -1175,10 +1353,20 @@ class RouteManager {
             lineCap: 'round',
             lineJoin: 'round'
         }).addTo(app.map);
-        
+
+        // Add emoji direction markers along the polyline to indicate direction
+        let directionMarkers = [];
+        try {
+            directionMarkers = this.createDirectionMarkers(routeLayer, routeData);
+        } catch (err) {
+            console.warn('Error creating direction markers:', err);
+            directionMarkers = [];
+        }
+
         this.routeLayers[routeName] = {
             route: routeLayer,
             waypoints: null,
+            directionMarkers: directionMarkers,
             data: routeData
         };
         
@@ -1247,6 +1435,16 @@ class RouteManager {
                     console.warn(`Error removing route layer for ${routeName}:`, error);
                 }
             }
+            // Remove direction markers if present
+            if (layerGroup.directionMarkers && Array.isArray(layerGroup.directionMarkers)) {
+                try {
+                    layerGroup.directionMarkers.forEach(m => {
+                        if (m && app.map.hasLayer(m)) app.map.removeLayer(m);
+                    });
+                } catch (error) {
+                    console.warn(`Error removing direction markers for ${routeName}:`, error);
+                }
+            }
             
             if (layerGroup.waypoints) {
                 try {
@@ -1257,6 +1455,7 @@ class RouteManager {
                     console.warn(`Error removing waypoints for ${routeName}:`, error);
                 }
             }
+            // (duplicate removal removed) direction markers already handled above
         });
         
         this.routeLayers = {};
@@ -1297,10 +1496,20 @@ async showAllRoutes() {
                     opacity: 0.6,
                     lineCap: 'round'
                 }).addTo(app.map);
-                
+
+                // Add emoji direction markers for this route
+                let directionMarkers = [];
+                try {
+                    directionMarkers = this.createDirectionMarkers(routeLayer, routeData);
+                } catch (err) {
+                    console.warn('Error creating direction markers for showAllRoutes:', err);
+                    directionMarkers = [];
+                }
+
                 this.routeLayers[routeName] = {
                     route: routeLayer,
                     waypoints: null,
+                    directionMarkers: directionMarkers,
                     data: routeData
                 };
                 
@@ -1398,6 +1607,16 @@ async showAllRoutes() {
                 console.warn(`Error removing route layer for ${routeName}:`, error);
             }
         }
+        // Remove direction markers if present
+        if (layerGroup.directionMarkers && Array.isArray(layerGroup.directionMarkers)) {
+            try {
+                layerGroup.directionMarkers.forEach(m => {
+                    if (m && app.map.hasLayer(m)) app.map.removeLayer(m);
+                });
+            } catch (error) {
+                console.warn(`Error removing direction markers for ${routeName}:`, error);
+            }
+        }
         
         // REMOVED: Waypoints cleanup
     });
@@ -1454,10 +1673,19 @@ async createSnappedRouteForTransfer(routeName, routeData) {
             lineCap: 'round',
             lineJoin: 'round'
         }).addTo(app.map);
-        
+        // Add emoji direction markers for this transfer route
+        let directionMarkers = [];
+        try {
+            directionMarkers = this.createDirectionMarkers(routeLayer, routeData);
+        } catch (err) {
+            console.warn('Error creating direction markers for transfer route:', err);
+            directionMarkers = [];
+        }
+
         this.routeLayers[routeName] = {
             route: routeLayer,
             waypoints: null,
+            directionMarkers: directionMarkers,
             data: routeData
         };
         
@@ -2158,11 +2386,21 @@ async showTransferRouteWithStops(routeNames, transferPoint) {
                     layer: routeLayer,
                     data: routeData
                 });
-                
+
+                // Add emoji direction markers for this route and store in route manager
+                let directionMarkers = [];
+                try {
+                    directionMarkers = routeManager.createDirectionMarkers(routeLayer, routeData);
+                } catch (err) {
+                    console.warn('Error creating direction markers for transfer stops display:', err);
+                    directionMarkers = [];
+                }
+
                 // Add to route manager's tracking
                 routeManager.routeLayers[routeName] = {
                     route: routeLayer,
                     waypoints: null,
+                    directionMarkers: directionMarkers,
                     data: routeData
                 };
                 

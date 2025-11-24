@@ -994,6 +994,16 @@ body {
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
 }
 
+/* Direction marker emoji placed along polylines */
+.direction-marker {
+    font-size: 20px;
+    line-height: 1;
+    pointer-events: none; /* don't block map interactions */
+    z-index: 650; /* above most map layers */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.45));
+}
+
 /* Optimized Route Note */
 .optimized-note {
     background: #e3f2fd;
